@@ -1,0 +1,39 @@
+export const config = {
+  appTitle: "Gemini Gateway Studio",
+  helpButtonText: "Need Help?",
+  backendUrl: import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000",
+  refinerModel: "models/gemini-2.5-flash-lite-preview-06-17", // Модель для усиления и детализации промптов
+
+  models: [
+    { id: "gemini-2.5-pro", name: "gemini-2.5-pro" },
+    { id: "models/gemini-2.5-flash", name: "gemini-2.5-flash" },
+  ],
+
+  repoModal: {
+    title: "Clone GitHub Repository",
+    description: "Enter the URL of a public repository. The server will clone it and prepare it for analysis.",
+    placeholder: "https://github.com/user/repo.git",
+    cancelButton: "Cancel",
+    submitButton: "Clone & Prepare",
+    submitButtonCloning: "Cloning...",
+  },
+
+  helpModal: {
+    title: "Help & Instructions",
+    introduction: "Welcome to Gemini Gateway Studio! This is a powerful AI coding assistant, built on Google's latest and most advanced Gemini model.",
+    
+    apiKeyTitle: "Your Gemini API Key",
+    apiKeySection: "To start, you need a Google Gemini API key. You can get your key from Google AI Studio. This tool works with both the free and the paid API keys.",
+
+    filesTitle: "How to Use",
+    filesSection: "You can give the AI context by uploading files, folders, or public GitHub repositories. The AI will use this information to understand your code and give you the best possible answer.",
+    
+    repoTitle: "Important: About Limits",
+    repoSection: "This website does not limit you. All limits come from the Google Gemini API itself. If you provide too much context (many large files or big repositories), the API might not accept the request. For details, see the official Google AI rate limits: https://ai.google.dev/gemini-api/docs/rate-limits",
+
+    contactTitle: "Contact & Feedback",
+    contactSection: "If you find a bug, have an idea, or want to share your feedback, please email: matthewzhv@outlook.com",
+    
+    closeButton: "Close",
+  }
+};

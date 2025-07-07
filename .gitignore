@@ -1,0 +1,36 @@
+# Игнорирование зависимостей
+node_modules/
+backend/venv/
+
+# Игнорирование логов
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Игнорирование артефактов сборки
+dist/
+.DS_Store
+Thumbs.db
+
+# Игнорирование файлов IDE и редакторов
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Игнорирование кеша Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Игнорирование файлов окружения (секреты)
+.env*
+!/.env.example
