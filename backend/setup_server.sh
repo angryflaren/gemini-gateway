@@ -9,7 +9,8 @@ sudo apt-get install -y python3-pip python3-venv nginx
 
 # Create project directory
 sudo mkdir -p /var/www/gemini_gateway
-sudo chown -R $USER:www-data /var/www/gemini_gateway
+CURRENT_USER=$(whoami)
+sudo chown -R $CURRENT_USER:www-data /var/www/gemini_gateway
 cp -r . /var/www/gemini_gateway/
 
 # Setup Python environment

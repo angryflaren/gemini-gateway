@@ -5,3 +5,4 @@ google-generativeai
 python-multipart
 fastapi-cors
 gpt-repository-loader
+gunicorn
