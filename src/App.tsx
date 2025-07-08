@@ -106,10 +106,13 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }
           <p>{config.helpModal.introduction}</p>
           <div><h4 className="font-semibold">{config.helpModal.apiKeyTitle}</h4><p>{config.helpModal.apiKeySection}</p></div>
           <div><h4 className="font-semibold">{config.helpModal.filesTitle}</h4><p>{config.helpModal.filesSection}</p></div>
-          <div><h4 className="font-semibold">{config.helpModal.repoTitle}</h4><p>{config.helpModal.repoSection}</p></div>
+          <div>
+            <h4 className="font-semibold">{config.helpModal.repoTitle}</h4>
+            <ReactMarkdown>{config.helpModal.repoSection}</ReactMarkdown>
+          </div>
           <div>
             <h4 className="font-semibold">{config.helpModal.contactTitle}</h4>
-            <p>{config.helpModal.contactSection}</p>
+            <ReactMarkdown>{config.helpModal.contactSection}</ReactMarkdown>
           </div>
         </div>
         <div className="flex justify-end mt-6">
