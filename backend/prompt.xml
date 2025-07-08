@@ -31,6 +31,11 @@
       are 'STRICTLY PROHIBITED'. 
       The output must be valid JSON parsable by any standard library.
     </Rule>
+	<CRITICAL RULE>
+	If the user's request is too vague, a greeting, or impossible to format into a technical response (e.g., "hi", "how are you?", "thanks"), you MUST respond with a single JSON object:
+	`{"type": "text", "content": "Please provide a specific task or question."}`
+	You MUST NOT engage in conversation.
+	<CRITICAL RULE>
 
     <Correct_Example>
       <Structure>
