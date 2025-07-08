@@ -106,7 +106,14 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }
           <p>{config.helpModal.introduction}</p>
           <div><h4 className="font-semibold">{config.helpModal.apiKeyTitle}</h4><p>{config.helpModal.apiKeySection}</p></div>
           <div><h4 className="font-semibold">{config.helpModal.filesTitle}</h4><p>{config.helpModal.filesSection}</p></div>
-          <div><h4 className="font-semibold">{config.helpModal.repoTitle}</h4><p>{config.helpModal.repoSection}</p></div>
+          <div>
+            <h4 className="font-semibold">{config.helpModal.repoTitle}</h4>
+            <ReactMarkdown>{config.helpModal.repoSection}</ReactMarkdown>
+          </div>
+          <div>
+            <h4 className="font-semibold">{config.helpModal.contactTitle}</h4>
+            <ReactMarkdown>{config.helpModal.contactSection}</ReactMarkdown>
+          </div>
         </div>
         <div className="flex justify-end mt-6">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{config.helpModal.closeButton}</button>
@@ -300,5 +307,3 @@ const App = () => {
 };
 
 export default App;
-
-// Просто комментарий для новой сборки

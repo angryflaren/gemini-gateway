@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.prose a,
+.prose-sm a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.prose a:hover,
+.prose-sm a:hover {
+  color: #1d4ed8;
+}
+
+/* Стили для темной темы */
+.dark .prose a,
+.dark .prose-sm a {
+  color: #3b82f6;
+}
+
+.dark .prose a:hover,
+.dark .prose-sm a:hover {
+  color: #60a5fa; 
+}

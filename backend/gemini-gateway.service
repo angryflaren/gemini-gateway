@@ -1,5 +1,5 @@
 [Unit]
-Description=Gemini Gateway Backend Service
+Description=Gemini Gateway Backend Servic
 After=network.target
 
 [Service]

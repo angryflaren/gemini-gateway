@@ -1,7 +1,7 @@
 export const config = {
   appTitle: "Gemini Gateway Studio",
   helpButtonText: "Need Help?",
-  backendUrl: "https://identity-birthday-every-packed.trycloudflare.com",
+  backendUrl: "https://38e6a01e461a.ngrok-free.app",
   refinerModel: "models/gemini-2.5-flash-lite-preview-06-17", // Модель для усиления и детализации промптов
 
   models: [
@@ -29,10 +29,10 @@ export const config = {
     filesSection: "You can give the AI context by uploading files, folders, or public GitHub repositories. The AI will use this information to understand your code and give you the best possible answer.",
     
     repoTitle: "Important: About Limits",
-    repoSection: "This website does not limit you. All limits come from the Google Gemini API itself. If you provide too much context (many large files or big repositories), the API might not accept the request. For details, see the official Google AI rate limits: https://ai.google.dev/gemini-api/docs/rate-limits",
+    repoSection: "This website does not limit you. All limits come from the Google Gemini API itself. If you provide too much context (many large files or big repositories), the API might not accept the request. For details, see the official Google AI rate limits: [https://ai.google.dev/gemini-api/docs/rate-limits](https://ai.google.dev/gemini-api/docs/rate-limits)",
 
     contactTitle: "Contact & Feedback",
-    contactSection: "If you find a bug, have an idea, or want to share your feedback, please email: matthewzhv@outlook.com",
+    contactSection: "If you find a bug, have an idea, or want to share your feedback, please email: [matthewzhv@outlook.com](mailto:matthewzhv@outlook.com)",
     
     closeButton: "Close",
   }
