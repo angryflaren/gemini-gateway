@@ -1,12 +1,12 @@
 [Unit]
-Description=Gemini Gateway Backend Service
+Description=Gemini Gateway Backend Servic
 After=network.target
 
 [Service]
 User=root
 Group=www-data
-WorkingDirectory=/var/www/gemini_gateway/backend
-ExecStart=/var/www/gemini_gateway/backend/venv/bin/python -m gunicorn.app.wsgiapp -c gunicorn_conf.py main:app
+WorkingDirectory=/var/www/gemini_gateway
+ExecStart=/var/www/gemini_gateway/venv/bin/uvicorn --workers 3 --uds /tmp/gunicorn_gemini_gateway.sock main:app
 
 [Install]
 WantedBy=multi-user.target
