@@ -1,32 +1,33 @@
 #!/bin/bash
-set -e # Прерывать скрипт при любой ошибке
+set -e # Exit immediately if a command exits with a non-zero status.
 
-echo "--- Starting Gemini Gateway Backend Setup (v2 - Robust) ---"
+echo "--- Starting Gemini Gateway Backend Setup (v3 - Final) ---"
 
-# --- 1. Очистка старой установки (чтобы избежать конфликтов) ---
+# --- 1. Clean up previous attempts to ensure a fresh start ---
 echo "--- Cleaning up previous installation attempts... ---"
 sudo systemctl stop gemini-gateway.service || true
 sudo systemctl disable gemini-gateway.service || true
 sudo rm -f /etc/systemd/system/gemini-gateway.service
 sudo rm -f /etc/nginx/sites-enabled/gemini_gateway
 sudo rm -f /etc/nginx/sites-available/gemini_gateway
-sudo rm -rf /var/www/gemini_gateway # Полностью удаляем старую папку
+sudo rm -rf /var/www/gemini_gateway
 echo "Cleanup complete."
 
-# --- 2. Установка зависимостей ---
+# --- 2. Install system dependencies ---
 echo "--- Installing system dependencies... ---"
 sudo apt-get update && sudo apt-get install -y python3-pip python3-venv nginx
 
-# --- 3. Настройка проекта и прав доступа ---
+# --- 3. Set up project directory and copy files correctly ---
 echo "--- Setting up project directory and permissions... ---"
 PROJECT_DIR="/var/www/gemini_gateway"
-CURRENT_USER=$(whoami)
-sudo mkdir -p $PROJECT_DIR
-# Копируем файлы ПЕРЕД сменой владельца
-sudo cp -r . $PROJECT_DIR
-sudo chown -R $CURRENT_USER:$CURRENT_USER $PROJECT_DIR
+# Create the main project directory AND the 'backend' subdirectory inside it
+sudo mkdir -p $PROJECT_DIR/backend
+# Copy all files from the current location (.) into the new 'backend' subdirectory
+sudo cp -r ./* $PROJECT_DIR/backend/
+# Set ownership for the entire project
+sudo chown -R $USER:$USER $PROJECT_DIR
 
-# --- 4. Настройка виртуального окружения Python ---
+# --- 4. Set up Python virtual environment ---
 echo "--- Setting up Python virtual environment... ---"
 cd $PROJECT_DIR/backend
 python3 -m venv venv
@@ -35,17 +36,15 @@ pip install --upgrade pip
 pip install -r requirements.txt
 deactivate
 
-# --- 5. Проверка установки Gunicorn (Важный шаг отладки) ---
+# --- 5. Verify Gunicorn installation ---
 echo "--- Verifying Gunicorn installation... ---"
-if [ -f "$PROJECT_DIR/backend/venv/bin/gunicorn" ]; then
-    echo "SUCCESS: Gunicorn executable found at $PROJECT_DIR/backend/venv/bin/gunicorn"
-    sudo chmod +x $PROJECT_DIR/backend/venv/bin/gunicorn # Убедимся, что файл исполняемый
-else
+if [ ! -f "$PROJECT_DIR/backend/venv/bin/gunicorn" ]; then
     echo "CRITICAL ERROR: Gunicorn was not found after installation. Exiting."
     exit 1
 fi
+echo "SUCCESS: Gunicorn executable found."
 
-# --- 6. Настройка Nginx ---
+# --- 6. Configure Nginx ---
 echo "--- Configuring Nginx... ---"
 sudo bash -c 'cat > /etc/nginx/sites-available/gemini_gateway' << EOF
 server {
@@ -61,18 +60,21 @@ server {
     }
 }
 EOF
+
+# Avoid 'File exists' error by removing the link before creating it
+sudo rm -f /etc/nginx/sites-enabled/gemini_gateway
 sudo ln -s /etc/nginx/sites-available/gemini_gateway /etc/nginx/sites-enabled/
-sudo nginx -t # Проверка синтаксиса конфига Nginx
+sudo nginx -t
 sudo systemctl restart nginx
 
-# --- 7. Настройка и запуск сервиса Systemd ---
+# --- 7. Configure and start the systemd service ---
 echo "--- Configuring and starting the systemd service... ---"
+# This expects gemini-gateway.service to be in the current directory
 sudo cp $PROJECT_DIR/backend/gemini-gateway.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl start gemini-gateway
 sudo systemctl enable gemini-gateway
 
 echo "--- Setup finished. Checking service status... ---"
-# Даем сервису секунду на запуск перед проверкой
 sleep 1
 sudo systemctl status gemini-gateway.service --no-pager -l
