@@ -1,7 +1,7 @@
 export const config = {
   appTitle: "Gemini Gateway Studio",
   helpButtonText: "Need Help?",
-  backendUrl: "https://dd9668965da0.ngrok-free.app",
+  backendUrl: "https://7fb901953f5d.ngrok-free.app",
   refinerModel: "models/gemini-2.5-flash-lite-preview-06-17", // Модель для усиления и детализации промптов
 
   models: [
