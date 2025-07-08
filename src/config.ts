@@ -1,7 +1,7 @@
 export const config = {
   appTitle: "Gemini Gateway Studio",
   helpButtonText: "Need Help?",
-  backendUrl: import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000",
+  backendUrl: "https://identity-birthday-every-packed.trycloudflare.com",
   refinerModel: "models/gemini-2.5-flash-lite-preview-06-17", // Модель для усиления и детализации промптов
 
   models: [
