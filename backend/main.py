@@ -48,7 +48,7 @@ def process_repository_to_text(repo_path_str: str) -> str:
             try:
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                output_parts.append(f"---\nFile: {str(relative_path).replace('\\', '/')}\nContent:\n```\n{content}\n```")
+                output_parts.append(f"---\nFile: {relative_path.as_posix()}\nContent:\n```\n{content}\n```")
             except Exception as e:
                 print(f"Could not read file {file_path}: {e}")
             
