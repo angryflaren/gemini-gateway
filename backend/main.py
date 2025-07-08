@@ -4,8 +4,6 @@ import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.concurrency import run_in_threadpool
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import json
 import zipfile
 import tempfile
@@ -14,18 +12,28 @@ import subprocess
 from pydantic import BaseModel
 from typing import List
 
-# --- Инициализация FastAPI и CORS ---
+# --- FastAPI App Initialization & CORS ---
 app = FastAPI()
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://angryflaren.github.io",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Pydantic Models ---
 class RepoRequest(BaseModel):
     url: str
 
-YOUR_GITHUB_PAGES_URL = "https://angryflaren.github.io/" 
-
-origins = ["http://localhost:5173", "http://127.0.0.1:5173", YOUR_GITHUB_PAGES_URL]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-
-# --- Вспомогательные функции ---
+# --- Helper Functions ---
 def load_system_prompt():
     try:
         with open("prompt.xml", "r", encoding="utf-8") as f:
@@ -34,7 +42,6 @@ def load_system_prompt():
         return "You are a helpful programming assistant."
 
 def process_repository_to_text(repo_path_str: str) -> str:
-    print(f"Processing directory at: {repo_path_str}")
     repo_path = Path(repo_path_str)
     output_parts = []
     ignore_patterns = {'.git', 'node_modules', '__pycache__', '.vscode', '.idea'}
@@ -48,11 +55,11 @@ def process_repository_to_text(repo_path_str: str) -> str:
             try:
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
+                # Исправленная строка с .as_posix()
                 output_parts.append(f"---\nFile: {relative_path.as_posix()}\nContent:\n```\n{content}\n```")
             except Exception as e:
                 print(f"Could not read file {file_path}: {e}")
             
-    print("Directory processing complete.")
     return "\n".join(output_parts)
 
 async def self_correct_json_response(api_key: str, faulty_text: str, model_id: str) -> str:
