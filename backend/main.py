@@ -6,6 +6,7 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import List
+import pathspec
 
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
@@ -45,20 +46,72 @@ def load_system_prompt():
 def process_repository_to_text(repo_path_str: str) -> str:
     repo_path = Path(repo_path_str)
     output_parts = []
-    ignore_patterns = {'.git', 'node_modules', '__pycache__', '.vscode', '.idea'}
+    
+    # Расширенный список игнорирования по умолчанию
+    default_ignore = [
+        # Git
+        '.git/',
+        # Зависимости
+        'node_modules/',
+        '__pycache__/',
+        'venv/',
+        'env/',
+        # Артефакты сборки
+        'build/',
+        'dist/',
+        '.out/',
+        # Логи и временные файлы
+        '*.log',
+        'npm-debug.log*',
+        'yarn-debug.log*',
+        'yarn-error.log*',
+        # Файлы IDE
+        '.vscode/',
+        '.idea/',
+        '.DS_Store',
+        # Файлы блокировок зависимостей
+        'package-lock.json',
+        'yarn.lock',
+        'pnpm-lock.yaml',
+        'poetry.lock',
+        # Файлы окружения
+        '.env',
+        '.env.*',
+        '!/.env.example'
+    ]
+    
+    patterns = default_ignore
+    gitignore_path = repo_path / '.gitignore'
+    
+    if gitignore_path.is_file():
+        try:
+            with open(gitignore_path, 'r', encoding='utf-8') as f:
+                patterns.extend(f.read().splitlines())
+        except Exception as e:
+            print(f"Could not read .gitignore file: {e}")
+            
+    spec = pathspec.PathSpec.from_lines('gitwildmatch', patterns)
 
     for file_path in repo_path.rglob('*'):
-        if file_path.is_file():
-            if any(part in ignore_patterns for part in file_path.parts):
+        if not file_path.is_file():
+            continue
+
+        relative_path_for_spec = file_path.relative_to(repo_path)
+        if spec.match_file(str(relative_path_for_spec).replace('\\', '/')):
+            continue
+            
+        try:
+            # Пропускаем слишком большие файлы, чтобы избежать проблем
+            if file_path.stat().st_size > 10 * 1024 * 1024: # 2MB
+                print(f"Skipping large file {file_path}")
                 continue
             
-            relative_path = file_path.relative_to(repo_path)
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                output_parts.append(f"---\nFile: {relative_path.as_posix()}\nContent:\n```\n{content}\n```")
-            except Exception as e:
-                print(f"Could not read file {file_path}: {e}")
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            relative_path_for_output = file_path.relative_to(repo_path)
+            output_parts.append(f"---\nFile: {relative_path_for_output.as_posix()}\nContent:\n```\n{content}\n```")
+        except Exception as e:
+            print(f"Could not read file {file_path}: {e}")
             
     return "\n".join(output_parts)
 
