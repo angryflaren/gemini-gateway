@@ -102,7 +102,21 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         );
     // --- СТАРЫЕ БЛОКИ ---
     case 'text':
-      return <ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert" remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{part.content}</ReactMarkdown>;
+        return (
+            <ReactMarkdown
+                className="leading-relaxed break-words prose dark:prose-invert"
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                    h1: ({node, ...props}) => <h1 className="text-gray-900 dark:text-gray-50" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-gray-800 dark:text-gray-100" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-gray-800 dark:text-gray-200" {...props} />,
+                    h4: ({node, ...props}) => <h4 className="text-gray-700 dark:text-gray-300" {...props} />,
+                }}
+            >
+                {part.content}
+            </ReactMarkdown>
+        );
     case 'code':
       return (
         <div className="relative group my-4 overflow-x-auto rounded-md">
