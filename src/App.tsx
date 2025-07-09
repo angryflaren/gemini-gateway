@@ -74,14 +74,14 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     case 'title':
         return (
             <div className="border-b-2 border-blue-500 pb-3 mb-4">
-                <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 break-words">{part.content}</h1>
-                {part.subtitle && <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">{part.subtitle}</p>}
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-50 break-words">{part.content}</h1>
+                {part.subtitle && <p className="text-lg text-gray-600 dark:text-gray-300 mt-1">{part.subtitle}</p>}
             </div>
         );
     case 'heading':
-      return <h2 className="text-2xl font-bold border-b pb-2 pt-4 break-words">{part.content}</h2>;
+      return <h2 className="text-2xl font-bold border-b dark:border-gray-600 pb-2 pt-4 break-words text-gray-800 dark:text-gray-100">{part.content}</h2>;
     case 'subheading':
-        return <h3 className="text-xl font-semibold pt-3 break-words">{part.content}</h3>;
+        return <h3 className="text-xl font-semibold pt-3 break-words text-gray-800 dark:text-gray-200">{part.content}</h3>;
     case 'annotated_heading':
         return (
             <div className="flex items-center gap-3 pt-4">
@@ -91,9 +91,9 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         );
     case 'quote_heading':
         return (
-            <div className="my-4 border-l-4 border-gray-400 dark:border-gray-500 pl-4 italic">
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-300">{part.content}</p>
-                {part.source && <cite className="block text-right text-sm text-gray-500 dark:text-gray-400 mt-1 not-italic">— {part.source}</cite>}
+            <div className="my-4 border-l-4 border-sky-400 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-500 p-4 rounded-r-lg">
+                <p className="text-lg font-medium text-sky-800 dark:text-sky-200 italic">{part.content}</p>
+                {part.source && <cite className="block text-right text-sm text-sky-600 dark:text-sky-400 mt-2 not-italic">— {part.source}</cite>}
             </div>
         );
     // --- СТАРЫЕ БЛОКИ ---
