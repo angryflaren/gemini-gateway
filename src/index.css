@@ -21,34 +21,54 @@
 
 .dark .prose a:hover,
 .dark .prose-sm a:hover {
-  color: #60a5fa; 
-}
-.dark h1 {
-  color: #f9fafb; /* Яркий белый цвет для главного заголовка */
+  color: #60a5fa;
 }
 
-.dark h2 {
-  color: #f3f4f6; /* Почти белый для заголовков секций */
-  border-color: #4b5563; /* Делаем линию-разделитель чуть ярче */
+/* 1. Устанавливаем базовый, читаемый цвет текста для всей темной темы */
+.dark {
+  color: #d1d5db; /* Светло-серый, text-gray-300 */
 }
 
-.dark h3 {
-  color: #e5e7eb; /* Светло-серый для подзаголовков */
+/* 2. Принудительно задаем ЯРКИЕ цвета для ВСЕХ заголовков */
+.dark h1, .dark .prose h1 {
+  color: #f9fafb; /* Белый, text-gray-50 */
+}
+.dark h2, .dark .prose h2 {
+  color: #f3f4f6; /* Почти белый, text-gray-100 */
+  border-color: #4b5563; /* Линия-разделитель */
+}
+.dark h3, .dark .prose h3 {
+  color: #e5e7eb; /* Яркий светло-серый, text-gray-200 */
+}
+.dark h4, .dark .prose h4 {
+  color: #d1d5db; /* text-gray-300 */
 }
 
-.dark h4 {
-  color: #d1d5db; /* Еще один оттенок для других заголовков */
+.dark .prose {
+  color: #d1d5db; /* text-gray-300 */
+}
+.dark .prose p,
+.dark .prose li,
+.dark .prose ul,
+.dark .prose ol,
+.dark .prose div {
+  color: inherit; /* Наследуем основной цвет текста */
+}
+.dark .prose strong {
+  color: #ffffff; /* Делаем жирный текст чисто белым */
+}
+.dark .prose a {
+  color: #60a5fa; /* Яркий синий для ссылок */
 }
 
-/* Стили для подзаголовка под главным тайтлом */
+
+/* 4. Стили для кастомных элементов (оставляем как есть) */
 .dark .subtitle {
-  color: #9ca3af; /* Более тусклый, но читаемый серый */
+  color: #9ca3af; /* text-gray-400 */
 }
-
-/* Стили для цитат */
 .dark .quote-text {
-  color: #a5f3fc; /* Яркий голубой для текста цитаты */
+  color: #a5f3fc;
 }
 .dark .quote-cite {
-  color: #67e8f9; /* Более тусклый голубой для автора цитаты */
+  color: #67e8f9;
 }
