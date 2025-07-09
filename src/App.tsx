@@ -73,9 +73,11 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     // --- НОВЫЕ БЛОКИ ДЛЯ ЗАГОЛОВКОВ ---
     case 'title':
         return (
-            <div className="border-b-2 border-blue-500 pb-3 mb-4">
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-50 break-words">{part.content}</h1>
-                {part.subtitle && <p className="text-lg text-gray-600 dark:text-gray-300 mt-1">{part.subtitle}</p>}
+            <div className="border-b-2 border-blue-500 dark:border-blue-400 pb-3 mb-4">
+                {/* Убираем классы цвета, они теперь в CSS */}
+                <h1 className="text-4xl font-bold break-words">{part.content}</h1>
+                {/* Добавляем класс "subtitle" */}
+                {part.subtitle && <p className="text-lg mt-1 subtitle">{part.subtitle}</p>}
             </div>
         );
     case 'heading':
@@ -92,8 +94,10 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     case 'quote_heading':
         return (
             <div className="my-4 border-l-4 border-sky-400 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-500 p-4 rounded-r-lg">
-                <p className="text-lg font-medium text-sky-800 dark:text-sky-200 italic">{part.content}</p>
-                {part.source && <cite className="block text-right text-sm text-sky-600 dark:text-sky-400 mt-2 not-italic">— {part.source}</cite>}
+                {/* Добавляем класс "quote-text" */}
+                <p className="text-lg font-medium italic quote-text">{part.content}</p>
+                {/* Добавляем класс "quote-cite" */}
+                {part.source && <cite className="block text-right text-sm mt-2 not-italic quote-cite">— {part.source}</cite>}
             </div>
         );
     // --- СТАРЫЕ БЛОКИ ---
