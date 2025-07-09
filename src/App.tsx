@@ -9,31 +9,36 @@ import rehypeKatex from 'rehype-katex';
 import JSZip from 'jszip';
 import { config } from "./config";
 
-// --- Типы данных ---
+// --- 1. ОБНОВЛЕНИЕ ТИПОВ ДАННЫХ ---
+// Добавляем новые типы заголовков
+interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
+interface SubheadingPart { type: 'subheading'; content: string; }
+interface AnnotatedHeadingPart { type: 'annotated_heading'; content: string; tag: string; }
+interface QuoteHeadingPart { type: 'quote_heading'; content: string; source?: string; }
+// Стандартные типы
 interface TextPart { type: 'text'; content: string; }
 interface CodePart { type: 'code'; language: string; content: string; }
 interface MathPart { type: 'math'; content: string; }
 interface ListPart { type: 'list'; items: string[]; }
-type ResponsePart = HeadingPart | TextPart | CodePart | MathPart | ListPart;
+
+// Объединяем все в один тип
+type ResponsePart =
+  | TitlePart
+  | HeadingPart
+  | SubheadingPart
+  | AnnotatedHeadingPart
+  | QuoteHeadingPart
+  | TextPart
+  | CodePart
+  | MathPart
+  | ListPart;
 
 // --- Вспомогательные компоненты ---
-const GithubIcon = () => (
-  <svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0">
-    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-  </svg>
-);
-const FolderIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0">
-    <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path>
-  </svg>
-);
+const GithubIcon = () => ( <svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
+const FolderIcon = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
+const FileIcon = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"></path> </svg>);
 
-const FileIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"></path>
-  </svg>
-);
 const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: boolean, onClose: () => void, onSubmit: (url: string) => void, isCloning: boolean }) => {
   const [url, setUrl] = useState("");
   if (!isOpen) return null;
@@ -54,6 +59,7 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
   );
 };
 
+// --- 2. ОБНОВЛЕНИЕ КОМПОНЕНТА ResponseBlock ---
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = (code: string) => {
@@ -62,11 +68,37 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
   switch (part.type) {
+    // --- НОВЫЕ БЛОКИ ДЛЯ ЗАГОЛОВКОВ ---
+    case 'title':
+        return (
+            <div className="border-b-2 border-blue-500 pb-3 mb-4">
+                <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 break-words">{part.content}</h1>
+                {part.subtitle && <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">{part.subtitle}</p>}
+            </div>
+        );
     case 'heading':
-      return <div className="text-2xl font-bold border-b pb-2 pt-4 break-words"><ReactMarkdown components={{ p: React.Fragment }}>{part.content}</ReactMarkdown></div>;
+      return <h2 className="text-2xl font-bold border-b pb-2 pt-4 break-words">{part.content}</h2>;
+    case 'subheading':
+        return <h3 className="text-xl font-semibold pt-3 break-words">{part.content}</h3>;
+    case 'annotated_heading':
+        return (
+            <div className="flex items-center gap-3 pt-4">
+                <h4 className="text-lg font-semibold break-words">{part.content}</h4>
+                <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{part.tag}</span>
+            </div>
+        );
+    case 'quote_heading':
+        return (
+            <div className="my-4 border-l-4 border-gray-400 dark:border-gray-500 pl-4 italic">
+                <p className="text-lg font-medium text-gray-700 dark:text-gray-300">{part.content}</p>
+                {part.source && <cite className="block text-right text-sm text-gray-500 dark:text-gray-400 mt-1 not-italic">— {part.source}</cite>}
+            </div>
+        );
+    // --- СТАРЫЕ БЛОКИ ---
     case 'text':
-      return <ReactMarkdown className="leading-relaxed break-words" remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: (props) => <p {...props} /> }}>{part.content}</ReactMarkdown>;
+      return <ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert" remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{part.content}</ReactMarkdown>;
     case 'code':
       return (
         <div className="relative group my-4 overflow-x-auto rounded-md">
@@ -80,8 +112,8 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
       return <BlockMath math={part.content} />;
     case 'list':
       return (
-        <ul className="list-disc pl-6 space-y-2">
-          {part.items.map((item, i) => (<li key={i} className="break-words"><ReactMarkdown components={{ p: (props) => <div {...props} /> }}>{item}</ReactMarkdown></li>))}
+        <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert">
+          {part.items.map((item, i) => (<li key={i}><ReactMarkdown>{item}</ReactMarkdown></li>))}
         </ul>
       );
     default:
@@ -89,7 +121,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
       return (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <strong className="font-bold">Unknown Block Type!</strong>
-          <span className="block sm:inline"> An unknown block type was received from the AI.</span>
+          <span className="block sm:inline"> An unknown block type '{unknownPart?.type}' was received from the AI.</span>
           <pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre>
         </div>
       );
@@ -106,25 +138,16 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }
           <p>{config.helpModal.introduction}</p>
           <div><h4 className="font-semibold">{config.helpModal.apiKeyTitle}</h4><p>{config.helpModal.apiKeySection}</p></div>
           <div><h4 className="font-semibold">{config.helpModal.filesTitle}</h4><p>{config.helpModal.filesSection}</p></div>
-          <div>
-            <h4 className="font-semibold">{config.helpModal.repoTitle}</h4>
-            <ReactMarkdown>{config.helpModal.repoSection}</ReactMarkdown>
-          </div>
-          <div>
-            <h4 className="font-semibold">{config.helpModal.contactTitle}</h4>
-            <ReactMarkdown>{config.helpModal.contactSection}</ReactMarkdown>
-          </div>
+          <div><h4 className="font-semibold">{config.helpModal.repoTitle}</h4><ReactMarkdown>{config.helpModal.repoSection}</ReactMarkdown></div>
+          <div><h4 className="font-semibold">{config.helpModal.contactTitle}</h4><ReactMarkdown>{config.helpModal.contactSection}</ReactMarkdown></div>
         </div>
-        <div className="flex justify-end mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{config.helpModal.closeButton}</button>
-        </div>
+        <div className="flex justify-end mt-6"><button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{config.helpModal.closeButton}</button></div>
       </div>
     </div>
   );
 };
 
-
-// --- Основной компонент приложения ---
+// --- Основной компонент приложения (без изменений) ---
 const App = () => {
   const [apiKey, setApiKey] = useState("");
   const [inputText, setInputText] = useState("");
@@ -160,9 +183,7 @@ const App = () => {
     formData.append("model", model);
 	formData.append("refinerModel", config.refinerModel);
 
-    attachedFiles.forEach(file => {
-      formData.append("files", file);
-    });
+    attachedFiles.forEach(file => { formData.append("files", file); });
 
     try {
       const response = await fetch(`${config.backendUrl}/api/generate`, { method: "POST", body: formData });
@@ -182,23 +203,12 @@ const App = () => {
     }
   };
   
-  const addFiles = (newFiles: FileList | null) => {
-    if (newFiles && newFiles.length > 0) {
-      setAttachedFiles(prevFiles => [...prevFiles, ...Array.from(newFiles)]);
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const filesToUpload = e.target.files ? Array.from(e.target.files) : [];
-
-  if (filesToUpload.length > 0) {
-    setAttachedFiles(prevFiles => [...prevFiles, ...filesToUpload]);
-  }
-
-  e.target.value = '';
-
-  setIsAttachMenuOpen(false);
-};
+    const filesToUpload = e.target.files ? Array.from(e.target.files) : [];
+    if (filesToUpload.length > 0) { setAttachedFiles(prevFiles => [...prevFiles, ...filesToUpload]); }
+    e.target.value = '';
+    setIsAttachMenuOpen(false);
+  };
   
   const handleFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -261,10 +271,8 @@ const App = () => {
                 {attachedFiles.map((file, index) => {
                   const isRepo = file.name.startsWith('gh_repo:::');
                   const isFolder = file.name.endsWith('.zip');
-                  
                   let displayName: string = file.name;
                   let Icon = FileIcon;
-
                   if (isRepo) {
                     displayName = file.name.replace('gh_repo:::', '').replace(/---/g, '/');
                     Icon = GithubIcon;
@@ -272,7 +280,6 @@ const App = () => {
                     displayName = file.name.replace('.zip', '');
                     Icon = FolderIcon;
                   }
-
                   return (
                     <div key={`${file.name}-${index}`} className={`flex items-center gap-1 text-sm max-w-xs pl-2 pr-3 py-1 rounded-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
                       <Icon />
