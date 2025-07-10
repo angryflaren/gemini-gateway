@@ -9,7 +9,7 @@ import rehypeKatex from 'rehype-katex';
 import JSZip from 'jszip';
 import { config } from "./config";
 
-// --- 1. ТИПЫ ДАННЫХ (без изменений) ---
+// --- 1. ТИПЫ ДАННЫХ ---
 interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
 interface SubheadingPart { type: 'subheading'; content: string; }
@@ -31,7 +31,7 @@ type ResponsePart =
   | MathPart
   | ListPart;
 
-// --- Вспомогательные компоненты (без изменений) ---
+// --- Вспомогательные компоненты ---
 const GithubIcon = () => ( <svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 const FolderIcon = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const FileIcon = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"></path> </svg>);
@@ -184,24 +184,33 @@ const App = () => {
     formData.append("apiKey", apiKey);
     formData.append("prompt", inputText);
     formData.append("model", model);
-	formData.append("refinerModel", config.refinerModel);
+    formData.append("refinerModel", config.refinerModel);
 
     attachedFiles.forEach(file => { formData.append("files", file); });
 
     try {
       const response = await fetch(`${config.backendUrl}/api/generate`, {
-        method: "POST",
-        headers: {
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: formData
+          method: "POST",
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: formData
       });
+
       if (!response.ok) {
         let errorDetail = "An unknown server error occurred";
-        try { const errorData = await response.json(); errorDetail = errorData.detail || JSON.stringify(errorData); }
-        catch { errorDetail = await response.text(); }
+        try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || JSON.stringify(errorData);
+        } catch (jsonError) {
+            errorDetail = await response.text();
+        }
         throw new Error(errorDetail);
-      } catch (error) {
+      }
+
+      const data = await response.json();
+      setResponseParts(data);
+    } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       setResponseParts([{ type: 'code', language: 'error', content: `Request failed: ${message}` }]);
     } finally {
@@ -241,19 +250,23 @@ const App = () => {
     setIsCloning(true);
     setResponseParts([]);
     try {
-      const response = await fetch(`${config.backendUrl}/api/generate`, {
-        method: "POST",
-        headers: {
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: formData
+      const response = await fetch(`${config.backendUrl}/api/clone_repo`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({ url })
       });
       if (!response.ok) {
-        let errorDetail = "An unknown server error occurred";
-        try { const errorData = await response.json(); errorDetail = errorData.detail || JSON.stringify(errorData); }
-        catch { errorDetail = await response.text(); }
-        throw new Error(errorDetail);
-      } catch (error) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to clone repository');
+      }
+      const data = await response.json();
+      const repoFile = new File([data.processed_text], `gh_repo:::${data.repo_name.replace('gh_repo:::', '')}_context.txt`, { type: "text/plain" });
+      setAttachedFiles(prevFiles => [...prevFiles, repoFile]);
+      setIsRepoModalOpen(false);
+    } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       setResponseParts([{ type: 'code', language: 'error', content: `Clone failed: ${message}` }]);
     } finally {
@@ -284,7 +297,7 @@ const App = () => {
                   let displayName: string = file.name;
                   let Icon = FileIcon;
                   if (isRepo) {
-                    displayName = file.name.replace('gh_repo:::', '').replace(/---/g, '/');
+                    displayName = file.name.replace('gh_repo:::', '').replace('_context.txt', '').replace(/---/g, '/');
                     Icon = GithubIcon;
                   } else if (isFolder) {
                     displayName = file.name.replace('.zip', '');
