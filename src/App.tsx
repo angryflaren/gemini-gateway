@@ -81,7 +81,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
             </div>
         );
     case 'heading':
-      return <h2 className="text-2xl font-bold border-b dark:border-gray-600 pb-2 pt-4 break-words text-gray-800 dark:text-gray-100">{part.content}</h2>;
+      return <h2 className="text-2xl font-bold border-b dark:border-gray-600 pb-2 pt-4 break-words">{part.content}</h2>;
     case 'subheading':
         return <h3 className="text-xl font-semibold pt-3 break-words text-gray-800 dark:text-gray-200">{part.content}</h3>;
     case 'annotated_heading':
@@ -123,7 +123,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
           <button onClick={() => handleCopy(part.content)} className="absolute top-2 right-2 p-1.5 rounded-md bg-gray-800 bg-opacity-70 text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-10" aria-label="Copy code">
             {copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
           </button>
-          <SyntaxHighlighter language={part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{ padding: '1rem', paddingTop: '1rem', margin: 0 }} wrapLongLines={false}>{part.content}</SyntaxHighlighter>
+          <SyntaxHighlighter language={part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{ padding: '1rem', paddingTop: '1rem', margin: 0 }} wrapLongLines={false}>{String(part.content || '')}</SyntaxHighlighter>
         </div>
       );
     case 'math':
