@@ -21,6 +21,9 @@ jobs:
     - name: Install Dependencies 📦
       run: npm install
 
+    - name: List files in the root directory
+      run: ls -la
+
     - name: Build 🏗️
       run: npm run build
       env:
