@@ -1,3 +1,14 @@
+import React, { useState, useRef } from "react";
+import "katex/dist/katex.min.css";
+import { BlockMath } from "react-katex";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import JSZip from 'jszip';
+import { config } from "./config";
+
 // --- 1. ТИПЫ ДАННЫХ (без изменений) ---
 interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
@@ -45,24 +56,13 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
   );
 };
 
-// --- 2. ОБНОВЛЕННЫЙ КОМПОНЕНТ ResponseBlock ---
-// --- 2. ОБНОВЛЕННЫЙ КОМПОНЕНТ ResponseBlock ---
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
   const [copied, setCopied] = useState(false);
-
-  // ИСПРАВЛЕНИЕ: Передаем `part.content` в функцию копирования,
-  // чтобы избежать проблем с замыканием и состоянием.
   const handleCopy = (contentToCopy: string) => {
-    // Гарантируем, что мы не пытаемся скопировать `null` или `undefined`.
-    if (typeof contentToCopy !== 'string') {
-        console.error("Copy failed: content is not a string.", contentToCopy);
-        return;
-    }
+    if (typeof contentToCopy !== 'string') return;
     navigator.clipboard.writeText(contentToCopy).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(err => {
-        console.error("Failed to copy content: ", err);
     });
   };
 
@@ -70,53 +70,29 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     case 'title':
         return (
             <div className="border-b-2 border-blue-500 dark:border-blue-400 pb-3 mb-4">
-                {/* ИЗМЕНЕНИЕ: Классы цвета удалены. Управляются через index.css для лучшей поддержки тем. */}
-                <h1 className="text-4xl font-bold break-words title">
-                    <ReactMarkdown>{part.content}</ReactMarkdown>
-                </h1>
-                {part.subtitle && (
-                    <p className="text-lg mt-1 subtitle">
-                        <ReactMarkdown>{part.subtitle}</ReactMarkdown>
-                    </p>
-                )}
+                <h1 className="text-4xl font-bold break-words title"><ReactMarkdown>{part.content}</ReactMarkdown></h1>
+                {part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown>{part.subtitle}</ReactMarkdown></p>}
             </div>
         );
     case 'heading':
-      return (
-        <h2 className="text-2xl font-bold border-b dark:border-gray-600 pb-2 pt-4 break-words">
-            <ReactMarkdown>{part.content}</ReactMarkdown>
-        </h2>
-      );
+      return <h2 className="text-2xl font-bold border-b dark:border-gray-600 pb-2 pt-4 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h2>;
     case 'subheading':
-        // ИСПРАВЛЕНИЕ (Проблема 3): Оборачиваем в ReactMarkdown для рендеринга **жирного** и другого форматирования.
-        // Классы цвета удалены и управляются централизованно в `index.css`.
-        return (
-            <h3 className="text-xl font-semibold pt-3 break-words">
-                <ReactMarkdown>{part.content}</ReactMarkdown>
-            </h3>
-        );
+        return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h3>;
     case 'annotated_heading':
         return (
             <div className="flex items-center gap-3 pt-4">
                 <h4 className="text-lg font-semibold break-words">{part.content}</h4>
-                {/* ИЗМЕНЕНИЕ: Используется новый, семантический и легко настраиваемый класс .info-tag */}
                 <span className="info-tag">{part.tag}</span>
             </div>
         );
     case 'quote_heading':
-        // ИСПРАВЛЕНИЕ (Проблема 1): Удалены Tailwind классы цвета. Вместо них используются семантические классы.
-        // Стили (`.quote-text`, `.quote-cite`) определены в `index.css` для темной и светлой темы.
         return (
             <div className="my-4 border-l-4 border-sky-400 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-500 p-4 rounded-r-lg">
-                <p className="text-lg font-medium italic quote-text">
-                   <ReactMarkdown>{part.content}</ReactMarkdown>
-                </p>
+                <p className="text-lg font-medium italic quote-text"><ReactMarkdown>{part.content}</ReactMarkdown></p>
                 {part.source && <cite className="block text-right text-sm mt-2 not-italic quote-cite">— {part.source}</cite>}
             </div>
         );
     case 'text':
-        // ИСПРАВЛЕНИЕ (Проблема 4): Классы prose и prose-invert обеспечивают корректное отображение
-        // встроенного кода (через ` `) и других Markdown элементов.
         return (
             <ReactMarkdown
                 className="leading-relaxed break-words prose dark:prose-invert max-w-none"
@@ -127,23 +103,13 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
             </ReactMarkdown>
         );
     case 'code':
-      // ИСПРАВЛЕНИЕ (Проблема 2): `String(part.content || '')` предотвращает ошибку, если
-      // `part.content` будет `null` или `undefined`, обеспечивая рендеринг и копирование.
       const codeContent = String(part.content || '');
       return (
         <div className="relative group my-4 overflow-x-auto rounded-md">
           <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-gray-800 bg-opacity-70 text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-10" aria-label="Copy code">
             {copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
           </button>
-          <SyntaxHighlighter
-             language={part.language === 'error' ? 'bash' : part.language}
-             style={isDarkMode ? oneDark : oneLight}
-             showLineNumbers
-             customStyle={{ padding: '1rem', paddingTop: '1rem', margin: 0 }}
-             wrapLongLines={false}
-          >
-              {codeContent}
-          </SyntaxHighlighter>
+          <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{ padding: '1rem', paddingTop: '1rem', margin: 0 }} wrapLongLines={false}>{codeContent}</SyntaxHighlighter>
         </div>
       );
     case 'math':
@@ -151,12 +117,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     case 'list':
       return (
         <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">
-          {/* ИСПРАВЛЕНИЕ: Оборачиваем каждый элемент списка в ReactMarkdown для поддержки форматирования. */}
-          {part.items.map((item, i) => (
-            <li key={i}>
-                <ReactMarkdown>{item}</ReactMarkdown>
-            </li>
-          ))}
+          {part.items.map((item, i) => (<li key={i}><ReactMarkdown>{item}</ReactMarkdown></li>))}
         </ul>
       );
     default:
@@ -190,7 +151,6 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }
   );
 };
 
-// --- Основной компонент приложения (без изменений) ---
 const App = () => {
   const [apiKey, setApiKey] = useState("");
   const [inputText, setInputText] = useState("");
@@ -302,12 +262,12 @@ const App = () => {
     <div className={isDarkMode ? 'dark' : ''}>
       <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-      <div className={`min-h-screen flex flex-col transition-colors duration-300 bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-white`}>
-        <header className={`px-6 py-4 flex justify-between items-center shadow-sm transition-colors bg-white dark:bg-gray-800`}><h1 className="text-xl font-semibold">{config.appTitle}</h1><div className="flex items-center gap-2"><button onClick={handleHelpClick} className={`px-3 py-1 text-xs rounded-md transition-colors bg-blue-100 hover:bg-blue-200 dark:bg-blue-700 dark:hover:bg-blue-600`}>{config.helpButtonText}</button><button onClick={toggleTheme} className={`p-2 rounded-full transition-colors bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600`} aria-label="Toggle theme">{isDarkMode ? '☀️' : '🌙'}</button></div></header>
+      <div className="min-h-screen flex flex-col transition-colors duration-300 bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-white">
+        <header className="px-6 py-4 flex justify-between items-center shadow-sm transition-colors bg-white dark:bg-gray-800"><h1 className="text-xl font-semibold">{config.appTitle}</h1><div className="flex items-center gap-2"><button onClick={handleHelpClick} className="px-3 py-1 text-xs rounded-md transition-colors bg-blue-100 hover:bg-blue-200 dark:bg-blue-700 dark:hover:bg-blue-600">{config.helpButtonText}</button><button onClick={toggleTheme} className="p-2 rounded-full transition-colors bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600" aria-label="Toggle theme">{isDarkMode ? '☀️' : '🌙'}</button></div></header>
         <main className="flex-grow max-w-4xl mx-auto w-full px-4 md:px-6 py-8 space-y-8">
-          <section className={`p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800`}><label className="block text-sm font-medium mb-2">Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Enter your Gemini API key" className={`w-full px-4 py-2 border rounded-md outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white`} /></section>
-          <section className={`p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800`}><label className="block text-sm font-medium mb-2">Select Gemini Model</label><select value={model} onChange={(e) => setModel(e.target.value)} className={`w-full px-4 py-2 border rounded-md outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white`}>{config.models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></section>
-          <section className={`p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800`}>
+          <section className="p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800"><label className="block text-sm font-medium mb-2">Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Enter your Gemini API key" className="w-full px-4 py-2 border rounded-md outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white" /></section>
+          <section className="p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800"><label className="block text-sm font-medium mb-2">Select Gemini Model</label><select value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-4 py-2 border rounded-md outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white">{config.models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></section>
+          <section className="p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800">
             <label className="block text-sm font-medium mb-2">Your prompt</label>
             {attachedFiles.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
@@ -324,7 +284,7 @@ const App = () => {
                     Icon = FolderIcon;
                   }
                   return (
-                    <div key={`${file.name}-${index}`} className={`flex items-center gap-1 text-sm max-w-xs pl-2 pr-3 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300`}>
+                    <div key={`${file.name}-${index}`} className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-3 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                       <Icon />
                       <span className="truncate" title={displayName}>{displayName}</span>
                       <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-400 font-bold">×</button>
@@ -333,14 +293,14 @@ const App = () => {
                 })}
               </div>
             )}
-            <textarea rows={6} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Type your request here..." className={`w-full px-4 py-2 border rounded-md resize-none outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white`}></textarea>
+            <textarea rows={6} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Type your request here..." className="w-full px-4 py-2 border rounded-md resize-none outline-none focus:ring-2 transition-colors bg-white border-gray-300 text-gray-800 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-500 dark:text-white"></textarea>
             <div className="mt-3 flex justify-between items-center">
-              <div className="relative"><button onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)} className={`p-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700`} aria-label="Attach file"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
+              <div className="relative"><button onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)} className="p-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Attach file"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
                 {isAttachMenuOpen && (
-                  <div className={`absolute bottom-full mb-2 w-64 rounded-md shadow-lg py-1 z-10 bg-white dark:bg-gray-700`}>
-                    <button onClick={handleUploadFileClick} className={`block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600`}>Upload Files</button>
-                    <button onClick={handleUploadFolderClick} className={`block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600`}>Upload Folder</button>
-                    <button onClick={() => { setIsRepoModalOpen(true); setIsAttachMenuOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600`}>GitHub Repository</button>
+                  <div className="absolute bottom-full mb-2 w-64 rounded-md shadow-lg py-1 z-10 bg-white dark:bg-gray-700">
+                    <button onClick={handleUploadFileClick} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600">Upload Files</button>
+                    <button onClick={handleUploadFolderClick} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600">Upload Folder</button>
+                    <button onClick={() => { setIsRepoModalOpen(true); setIsAttachMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600">GitHub Repository</button>
                   </div>)}
               </div>
               <button onClick={handleSubmit} disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed">{isLoading ? `Generating...` : 'Send to Gemini'}</button>
@@ -348,9 +308,9 @@ const App = () => {
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
             <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
           </section>
-          <section className={`p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800`}><label className="block text-sm font-medium mb-2">Gemini's Response</label><div className={`w-full p-4 border rounded-md min-h-[180px] transition-colors bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700`}>{isLoading && (<span className={`p-2 text-gray-500 dark:text-gray-400`}>Gemini is thinking...</span>)}{!isLoading && responseParts.length > 0 ? ( <div className="space-y-4">{responseParts.map((part, index) => <ResponseBlock key={index} part={part} isDarkMode={isDarkMode} />)}</div>) : !isLoading && (<span className={`p-2 text-gray-500 dark:text-gray-400`}>Your Gemini-generated content will appear here.</span>)}</div></section>
+          <section className="p-5 rounded-xl shadow-md transition-colors bg-white dark:bg-gray-800"><label className="block text-sm font-medium mb-2">Gemini's Response</label><div className="w-full p-4 border rounded-md min-h-[180px] transition-colors bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700">{isLoading && (<span className="p-2 text-gray-500 dark:text-gray-400">Gemini is thinking...</span>)}{!isLoading && responseParts.length > 0 ? ( <div className="space-y-4">{responseParts.map((part, index) => <ResponseBlock key={index} part={part} isDarkMode={isDarkMode} />)}</div>) : !isLoading && (<span className="p-2 text-gray-500 dark:text-gray-400">Your Gemini-generated content will appear here.</span>)}</div></section>
         </main>
-        <footer className={`px-6 py-4 text-center text-xs text-gray-500 dark:text-gray-400`}><p>Powered by Gemini API</p></footer>
+        <footer className="px-6 py-4 text-center text-xs text-gray-500 dark:text-gray-400"><p>Powered by Gemini API</p></footer>
       </div>
     </div>
   );
