@@ -9,6 +9,11 @@ export const config = {
     { id: "models/gemini-2.5-flash", name: "gemini-2.5-flash" },
   ],
 
+  dialog: {
+    historyToggleLabel: "Учитывать предыдущий диалог",
+    historyToggleWarning: "При включении этой опции в каждый запрос будет отправляться вся история диалога, что значительно увеличит расход токенов. Эта функция будет доступна в будущем.",
+  },
+
   repoModal: {
     title: "Clone GitHub Repository",
     description: "Enter the URL of a public repository. The server will clone it and prepare it for analysis.",
