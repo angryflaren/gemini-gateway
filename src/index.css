@@ -2,74 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === НОВАЯ ЦВЕТОВАЯ ПАЛИТРА И СТИЛИ (FLUENT UI / MACOS INSPIRED) === */
+/* === ГЛОБАЛЬНАЯ НАСТРОЙКА ШРИФТОВ И ЦВЕТОВ === */
+body {
+    @apply font-sans;
+}
 
 /* 1. Глобальные стили для ссылок, обеспечивающие контрастность */
-.prose a,
-.prose-sm a,
-a {
+.prose a, .prose-sm a, a {
     @apply text-sky-500 underline decoration-sky-500/50 hover:text-sky-400 hover:decoration-sky-400/50 transition-colors;
 }
 
 /* --- Стили для темной темы --- */
 .dark {
-    /* CSS-переменные для легкого управления палитрой */
     --bg-primary: theme('colors.slate.900');
     --bg-secondary: theme('colors.slate.800');
     --text-primary: theme('colors.slate.200');
     --text-secondary: theme('colors.slate.400');
     --text-headings: theme('colors.slate.50');
     --accent: theme('colors.sky.500');
-
     color: var(--text-primary);
 }
 
 /* 2. Контрастные и читабельные заголовки */
-.dark .title, .dark h1, .dark .prose h1 {
-    color: var(--text-headings);
-}
-.dark h2, .dark .prose h2 {
-    color: theme('colors.slate.100');
-    border-color: theme('colors.slate.700');
-}
-.dark h3, .dark .prose h3 {
-    color: theme('colors.slate.200');
-}
-.dark h4, .dark .prose h4 {
-    color: theme('colors.slate.300');
-}
+.dark .title, .dark h1, .dark .prose h1 { color: var(--text-headings); }
+.dark h2, .dark .prose h2 { color: theme('colors.slate.100'); border-color: theme('colors.slate.700'); }
+.dark h3, .dark .prose h3 { color: theme('colors.slate.200'); }
+.dark h4, .dark .prose h4 { color: theme('colors.slate.300'); }
 
 /* 3. Стили для обычного текста и встроенного кода */
-.dark .prose {
-    color: var(--text-primary);
-}
-.dark .prose strong {
-    color: theme('colors.slate.100');
-}
-
-/* [ИСПРАВЛЕНИЕ] Улучшенное отображение inline-кода */
-.dark .prose code {
-    @apply text-amber-300 bg-slate-700/50 rounded-md px-1.5 py-1 text-sm font-mono;
-}
+.dark .prose { color: var(--text-primary); }
+.dark .prose strong { color: theme('colors.slate.100'); }
+.dark .prose code { @apply text-amber-300 bg-slate-700/50 rounded-md px-1.5 py-1 text-sm font-mono; }
 
 /* 4. Стили для кастомных компонентов */
-.dark .subtitle {
-    color: var(--text-secondary);
-}
-.dark .quote-text {
-    @apply text-cyan-300;
-}
-.dark .quote-cite {
-    @apply text-cyan-400 opacity-80;
-}
-/* [ИСПРАВЛЕНИЕ] Задаем фон и рамку для контейнера цитаты */
-.dark .quote-heading-container {
-    @apply border-l-4 border-cyan-500 bg-slate-800/50;
-}
+.dark .subtitle { color: var(--text-secondary); }
+.dark .quote-text { @apply text-cyan-300; }
+.dark .quote-cite { @apply text-cyan-400 opacity-80; }
+.dark .quote-heading-container { @apply border-l-4 border-cyan-500 bg-slate-800/50; }
 
 /* 5. Тег для аннотаций */
 @layer components {
     .info-tag {
         @apply text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300;
     }
+}
+
+/* === НОВЫЕ СТИЛИ ДЛЯ ДИАЛОГОВОГО ИНТЕРФЕЙСА === */
+
+/* 1. "Пузырь" сообщения */
+@layer components {
+    .chat-bubble {
+        @apply w-auto max-w-2xl rounded-2xl p-4 shadow-md;
+    }
+    .chat-bubble.self-end {
+        @apply rounded-br-lg;
+    }
+    .chat-bubble.self-start {
+        @apply rounded-bl-lg;
+    }
+}
+
+/* 2. Индикатор печати (typing indicator) */
+.typing-indicator {
+    @apply flex gap-1.5 items-center justify-center p-2;
+}
+
+.typing-indicator span {
+    @apply h-2 w-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+/* 3. Стилизация неактивного переключателя истории */
+.history-toggle-wrapper {
+    @apply relative; /* Для позиционирования title/tooltip */
+}
+.history-toggle-wrapper label, 
+.history-toggle-wrapper input {
+    cursor: not-allowed;
+}
+
+/* Изменение непрозрачности для визуального отображения неактивности */
+.history-toggle-wrapper label {
+    @apply opacity-60;
 }
