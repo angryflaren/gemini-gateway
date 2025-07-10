@@ -72,6 +72,57 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
   );
 };
 
+const SettingsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 p-0.5">
+    <path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 5.85c-.09.55-.525.954-1.095 1.034l-3.022.504a1.875 1.875 0 00-1.556 2.89l1.173 2.535c.34.733.204 1.62-.358 2.15l-1.62 1.523a1.875 1.875 0 000 2.652l1.62 1.523c.562.53.7 1.417.358 2.15l-1.173 2.535a1.875 1.875 0 001.556 2.89l3.022.504c.57.08 1.005.484 1.095 1.034l.178 2.033c.15.904.933 1.567 1.85 1.567h1.844c.917 0 1.699-.663 1.85-1.567l.178-2.034c.09-.55.525-.954 1.095-1.034l3.022-.504a1.875 1.875 0 001.556-2.89l-1.173-2.535c-.34-.733-.204-1.62.358-2.15l1.62-1.523a1.875 1.875 0 000-2.652l-1.62-1.523c-.562-.53-.7-1.417-.358-2.15l1.173-2.535a1.875 1.875 0 00-1.556-2.89l-3.022-.504c-.57-.08-1.005-.484-1.095-1.034L13.172 3.817c-.15-.904-.933-1.567-1.85-1.567h-1.844zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clipRule="evenodd" />
+  </svg>
+);
+
+const SettingsModal = ({ isOpen, onClose, currentApiKey, onSave }: { isOpen: boolean, onClose: () => void, currentApiKey: string, onSave: (key: string) => void }) => {
+  const [key, setKey] = useState(currentApiKey);
+
+  useEffect(() => {
+    setKey(currentApiKey);
+  }, [currentApiKey, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    onSave(key);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-slate-100">Настройки</h3>
+        <div className="space-y-2">
+            <label htmlFor="apiKeyInput" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                Google Gemini API Key
+            </label>
+            <input 
+                id="apiKeyInput"
+                type="password" 
+                value={key} 
+                onChange={(e) => setKey(e.target.value)} 
+                placeholder="Введите ваш API ключ..." 
+                className="w-full px-4 py-2 border rounded-md outline-none focus:ring-2 bg-white border-gray-300 text-gray-800 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-sky-500 dark:text-white"
+            />
+             <p className="text-xs text-gray-500 dark:text-slate-400">
+                Ваш ключ хранится только в вашем браузере.
+            </p>
+        </div>
+        <div className="flex justify-end gap-4 mt-6">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-md text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">Отмена</button>
+          <button onClick={handleSave} className="px-4 py-2 text-sm rounded-md bg-sky-600 text-white hover:bg-sky-700">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = (contentToCopy: string) => {
@@ -222,9 +273,10 @@ const App = () => {
   const [inputText, setInputText] = useState("");
   const [model, setModel] = useState(config.models[0].id);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]); // <-- ГЛАВНОЕ ИЗМЕНЕНИЕ СОСТОЯНИЯ
+  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
@@ -393,12 +445,14 @@ const App = () => {
     <>
       <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentApiKey={apiKey} onSave={setApiKey} />
       
       <div className="flex h-screen flex-col transition-colors duration-300 bg-gray-50 text-gray-800 dark:bg-slate-900 dark:text-slate-200">
         <header className="px-6 py-3 flex justify-between items-center shadow-sm bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-slate-100">{config.appTitle}</h1>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowHelp(true)} className="px-3 py-1 text-xs rounded-md transition-colors bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20">{config.helpButtonText}</button>
+            <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 rounded-full transition-colors bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600" aria-label="Settings"><SettingsIcon/></button>
             <button onClick={toggleTheme} className="p-2 rounded-full transition-colors bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600" aria-label="Toggle theme">{isDarkMode ? '☀️' : '🌙'}</button>
           </div>
         </header>
