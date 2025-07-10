@@ -2,31 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- Общие стили для ссылок --- */
+/* === ОБЩИЕ УЛУЧШЕНИЯ === */
+
+/* 1. Глобальные стили для ссылок, чтобы они были хорошо видны в обеих темах. */
 .prose a,
 .prose-sm a {
-    @apply text-blue-600 underline hover:text-blue-800;
-}
-.dark .prose a,
-.dark .prose-sm a {
-    @apply text-blue-400 hover:text-blue-300;
+    @apply text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300;
 }
 
-/* === УЛУЧШЕННАЯ ПАЛИТРА ТЕМНОЙ ТЕМЫ === */
-/* Вдохновлено macOS/Fluent UI для максимальной четкости и контраста. */
 
-/* 1. Базовый цвет текста для комфортного чтения. */
-.dark {
+/* === НАДЕЖНАЯ ПАЛИТРА ДЛЯ ТЕМНОЙ ТЕМЫ === */
+/* Эти правила применяются, когда на `<html>` есть класс .dark */
+
+/* 2. Базовый цвет текста для темной темы. Обеспечивает высокий контраст и комфортное чтение. */
+.dark body {
   color: #d1d5db; /* gray-300 */
 }
 
-/* 2. Высококонтрастные, согласованные заголовки. Эти правила переопределяют inline-классы. */
+/* 3. Высококонтрастные, согласованные заголовки. Эти правила переопределяют любые inline-классы цвета. */
 .dark h1, .dark .prose h1, .dark .title {
   color: #f9fafb; /* gray-50 */
 }
 .dark h2, .dark .prose h2 {
   color: #f3f4f6; /* gray-100 */
-  border-color: #4b5563; /* gray-600 */
+  border-color: #4b5563; /* gray-600, для согласованности с границами инпутов */
 }
 .dark h3, .dark .prose h3 {
   color: #e5e7eb; /* gray-200 */
@@ -35,33 +34,43 @@
   color: #d1d5db; /* gray-300 */
 }
 
-/* 3. Гарантируем, что основной текст в блоках .prose наследует правильный цвет. */
+/* 4. Гарантируем, что основной текст в блоках, обработанных `prose`, наследует правильный цвет. */
 .dark .prose {
   color: #d1d5db; /* gray-300 */
 }
 .dark .prose strong {
-  color: #f9fafb; /* gray-50 для акцентирования */
+  color: #f9fafb; /* gray-50 для дополнительного акцента */
+}
+/* Стили для встроенных блоков кода в тексте */
+.dark .prose code {
+    @apply text-cyan-300 bg-gray-700/50 rounded px-1 py-0.5;
 }
 
-/* 4. Скорректированные стили для кастомных компонентов. */
+
+/* 5. Стили для кастомных компонентов, чтобы избежать inline-классов цвета в JSX */
+
+/* Подзаголовок для .title */
 .dark .subtitle {
   color: #9ca3af; /* gray-400 */
 }
+
+/* Блок цитаты (quote_heading) */
 .dark .quote-text {
-  color: #a5f3fc; /* cyan-200 */
+  color: #a5f3fc; /* cyan-200. Яркий, но не режущий глаз. */
 }
 .dark .quote-cite {
   color: #67e8f9; /* cyan-300 */
 }
 
-/* 5. НОВОЕ: Компонентный класс для тегов в аннотированных заголовках. */
+
+/* 6. НОВЫЙ КОМПОНЕНТНЫЙ КЛАСС: Тег для аннотированных заголовков. */
 @layer components {
     .info-tag {
-        @apply text-xs font-medium px-2 py-0.5 rounded-full;
+        @apply text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap;
     }
-    /* Стиль для светлой темы */
+    /* Стиль по умолчанию (светлая тема) */
     .info-tag {
-        @apply bg-slate-200 text-slate-600;
+        @apply bg-slate-200 text-slate-700;
     }
     /* Стиль для темной темы */
     .dark .info-tag {
