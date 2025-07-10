@@ -46,6 +46,7 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
 };
 
 // --- 2. ОБНОВЛЕННЫЙ КОМПОНЕНТ ResponseBlock ---
+// --- 2. ОБНОВЛЕННЫЙ КОМПОНЕНТ ResponseBlock ---
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
   const [copied, setCopied] = useState(false);
 
