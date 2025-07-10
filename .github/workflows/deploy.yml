@@ -21,6 +21,11 @@ jobs:
     - name: Install Dependencies 📦
       run: npm install
 
+    - name: Clean Install Dependencies 📦
+      run: |
+        rm -f package-lock.json
+        npm install
+        
     - name: List files in the root directory
       run: ls -la
 
