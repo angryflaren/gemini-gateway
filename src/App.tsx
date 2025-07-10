@@ -189,16 +189,19 @@ const App = () => {
     attachedFiles.forEach(file => { formData.append("files", file); });
 
     try {
-      const response = await fetch(`${config.backendUrl}/api/generate`, { method: "POST", body: formData });
+      const response = await fetch(`${config.backendUrl}/api/generate`, {
+        method: "POST",
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: formData
+      });
       if (!response.ok) {
         let errorDetail = "An unknown server error occurred";
         try { const errorData = await response.json(); errorDetail = errorData.detail || JSON.stringify(errorData); }
         catch { errorDetail = await response.text(); }
         throw new Error(errorDetail);
-      }
-      const data = await response.json();
-      setResponseParts(data);
-    } catch (error) {
+      } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       setResponseParts([{ type: 'code', language: 'error', content: `Request failed: ${message}` }]);
     } finally {
@@ -238,15 +241,19 @@ const App = () => {
     setIsCloning(true);
     setResponseParts([]);
     try {
-      const response = await fetch(`${config.backendUrl}/api/clone_repo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+      const response = await fetch(`${config.backendUrl}/api/generate`, {
+        method: "POST",
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: formData
+      });
       if (!response.ok) {
-        const errorData = await response.json(); throw new Error(errorData.detail);
-      }
-      const data = await response.json();
-      const repoFile = new File([data.processed_text], `${data.repo_name}_context.txt`, { type: "text/plain" });
-      setAttachedFiles(prevFiles => [...prevFiles, repoFile]);
-      setIsRepoModalOpen(false);
-    } catch (error) {
+        let errorDetail = "An unknown server error occurred";
+        try { const errorData = await response.json(); errorDetail = errorData.detail || JSON.stringify(errorData); }
+        catch { errorDetail = await response.text(); }
+        throw new Error(errorDetail);
+      } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       setResponseParts([{ type: 'code', language: 'error', content: `Clone failed: ${message}` }]);
     } finally {
