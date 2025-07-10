@@ -13,18 +13,18 @@
 
 /* === НАДЕЖНАЯ ПАЛИТРА ДЛЯ ТЕМНОЙ ТЕМЫ === */
 
-/* 2. Базовый цвет текста для темной темы. Обеспечивает высокий контраст и комфортное чтение. */
+/* 2. Базовый цвет текста для темной темы. */
 .dark body {
   color: #d1d5db; /* gray-300 */
 }
 
-/* 3. Высококонтрастные, согласованные заголовки. Эти правила переопределяют любые inline-классы цвета. */
+/* 3. Высококонтрастные заголовки. */
 .dark h1, .dark .prose h1, .dark .title {
   color: #f9fafb; /* gray-50 */
 }
 .dark h2, .dark .prose h2 {
   color: #f3f4f6; /* gray-100 */
-  border-color: #4b5563; /* gray-600, для согласованности с границами инпутов */
+  border-color: #4b5563; /* gray-600 */
 }
 .dark h3, .dark .prose h3 {
   color: #e5e7eb; /* gray-200 */
@@ -33,46 +33,32 @@
   color: #d1d5db; /* gray-300 */
 }
 
-/* 4. Гарантируем, что основной текст в блоках, обработанных `prose`, наследует правильный цвет. */
+/* 4. Стили для текста и встроенного кода. */
 .dark .prose {
   color: #d1d5db; /* gray-300 */
 }
 .dark .prose strong {
-  color: #f9fafb; /* gray-50 для дополнительного акцента */
+  color: #f9fafb; /* gray-50 */
 }
-/* Стили для встроенных блоков кода в тексте */
 .dark .prose code {
     @apply text-cyan-300 bg-gray-700/50 rounded px-1 py-0.5;
 }
 
 
-/* 5. Стили для кастомных компонентов, чтобы избежать inline-классов цвета в JSX */
-
-/* Подзаголовок для .title */
+/* 5. Стили для кастомных компонентов */
 .dark .subtitle {
   color: #9ca3af; /* gray-400 */
 }
-
-/* Блок цитаты (quote_heading) */
 .dark .quote-text {
-  color: #a5f3fc; /* cyan-200. Яркий, но не режущий глаз. */
+  color: #a5f3fc; /* cyan-200 */
 }
 .dark .quote-cite {
   color: #67e8f9; /* cyan-300 */
 }
 
-
-/* 6. НОВЫЙ КОМПОНЕНТНЫЙ КЛАСС: Тег для аннотированных заголовков. */
+/* 6. Компонентный класс для тега */
 @layer components {
     .info-tag {
-        @apply text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap;
-    }
-    /* Стиль по умолчанию (светлая тема) */
-    .info-tag {
-        @apply bg-slate-200 text-slate-700;
-    }
-    /* Стиль для темной темы */
-    .dark .info-tag {
-        @apply bg-slate-700 text-slate-300;
+        @apply text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300;
     }
 }
