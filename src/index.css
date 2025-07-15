@@ -78,6 +78,6 @@ a {
 
     /* "Пузырь" для ответа AI */
     .ai-bubble {
-        @apply bg-gray-200 dark:bg-gray-700/80 text-gray-900 dark:text-slate-200 p-3 rounded-2xl rounded-bl-lg max-w-xl shadow-md w-full space-y-2; /* ИСПРАВЛЕНО: space-y-2 вместо space-y-4 */
+        @apply bg-gray-200 dark:bg-gray-700/80 text-gray-900 dark:text-slate-200 p-3 rounded-2xl rounded-bl-lg max-w-xl shadow-md w-full space-y-2; 
     }
 }
