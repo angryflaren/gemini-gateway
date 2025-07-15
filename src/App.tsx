@@ -9,7 +9,7 @@ import rehypeKatex from 'rehype-katex';
 import JSZip from 'jszip';
 import { config } from "./config";
 
-// --- 1. ТИПЫ ДАННЫХ (из существующей реализации) ---
+// --- 1. ТИПЫ ДАННЫХ (ОБНОВЛЕННЫЕ) ---
 interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
 interface SubheadingPart { type: 'subheading'; content: string; }
@@ -24,7 +24,24 @@ type ResponsePart =
   | TitlePart | HeadingPart | SubheadingPart | AnnotatedHeadingPart
   | QuoteHeadingPart | TextPart | CodePart | MathPart | ListPart;
 
-// --- 2. ИКОНКИ (из нового дизайна) ---
+// НОВЫЕ ТИПЫ ДЛЯ ИСТОРИИ ДИАЛОГА
+interface UserTurn {
+  type: 'user';
+  prompt: string;
+  attachments: File[];
+  timestamp: string;
+}
+
+interface AITurn {
+  type: 'ai';
+  parts: ResponsePart[];
+  timestamp: string;
+}
+
+type ConversationTurn = UserTurn | AITurn;
+
+
+// --- 2. ИКОНКИ (без изменений) ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>);
 const SunIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" /><path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>);
 const MoonIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -38,10 +55,33 @@ const FileIconForAttachment = () => ( <svg viewBox="0 0 24 24" fill="currentColo
 const FolderIconForAttachment = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const GithubIconForAttachment = () => ( <svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 
+// --- 3. ВСПОМОГАТЕЛЬНЫЕ и НОВЫЕ КОМПОНЕНТЫ ---
 
-// --- 3. ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ (из существующей реализации) ---
+const AttachmentChip = ({ file }: { file: File }) => {
+  const isRepo = file.name.startsWith('gh_repo:::');
+  const isFolder = file.name.endsWith('.zip');
+  let displayName: string = file.name;
+  let Icon = FileIconForAttachment;
+
+  if (isRepo) {
+    displayName = file.name.replace('gh_repo:::', '').replace('_context.txt', '').replace(/---/g, '/');
+    Icon = GithubIconForAttachment;
+  } else if (isFolder) {
+    displayName = file.name.replace('.zip', '');
+    Icon = FolderIconForAttachment;
+  }
+  
+  return (
+    <div className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
+      <Icon />
+      <span className="truncate" title={displayName}>{displayName}</span>
+    </div>
+  );
+};
+
 
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
+    // ... (содержимое ResponseBlock без изменений)
     const [copied, setCopied] = useState(false);
     const handleCopy = (contentToCopy: string) => {
         if (typeof contentToCopy !== 'string') return;
@@ -73,6 +113,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     }
 });
 
+// ... (Компоненты HelpModal и RepoCloneModal без изменений)
 const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     if (!isOpen) return null;
     return (
@@ -112,17 +153,17 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
     );
   };
 
-
-// --- 4. ОСНОВНОЙ КОМПОНЕНТ APP ---
+// --- 4. ОСНОВНОЙ КОМПОНЕНТ APP (ОБНОВЛЕННЫЙ) ---
 export default function App() {
-  // --- УПРАВЛЕНИЕ СОСТОЯНИЕМ (из существующей реализации) ---
+  // --- УПРАВЛЕНИЕ СОСТОЯНИЕМ (ПЕРЕРАБОТАНО) ---
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState(config.models[0].id);
   const [inputText, setInputText] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [responseParts, setResponseParts] = useState<ResponsePart[]>([]);
+  const [conversation, setConversation] = useState<ConversationTurn[]>([]); // Главное изменение
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
@@ -132,12 +173,16 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // --- ЛОГИКА (из существующей реализации) ---
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
+  // --- ЛОГИКА ---
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [conversation, isLoading]);
 
   const handleUploadFileClick = () => fileInputRef.current?.click();
   const handleUploadFolderClick = () => folderInputRef.current?.click();
@@ -164,13 +209,13 @@ export default function App() {
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const zipFile = new File([zipBlob], `${folderName || 'project'}.zip`, { type: "application/zip" });
       setAttachedFiles(prevFiles => [...prevFiles, zipFile]);
-    } catch (err) { console.error("Failed to create zip file", err); }
+    } catch (err) { console.error("Failed to create zip file", err); setError("Failed to process folder."); }
     if (e.target) e.target.value = "";
   };
 
   const handleCloneRepo = async (url: string) => {
     setIsCloning(true);
-    setResponseParts([]);
+    setError(null);
     try {
       const response = await fetch(`${config.backendUrl}/api/clone_repo`, {
           method: 'POST',
@@ -187,7 +232,7 @@ export default function App() {
       setIsRepoModalOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
-      setResponseParts([{ type: 'code', language: 'error', content: `Clone failed: ${message}` }]);
+      setError(`Clone failed: ${message}`);
     } finally {
       setIsCloning(false);
     }
@@ -202,20 +247,26 @@ export default function App() {
     if (!inputText.trim()) return;
     
     setIsLoading(true);
-    setResponseParts([]);
+    setError(null);
+    const timestamp = new Date().toLocaleTimeString();
+    
+    // Добавляем ход пользователя в историю
+    setConversation(prev => [
+      ...prev, 
+      { type: 'user', prompt: inputText, attachments: attachedFiles, timestamp }
+    ]);
+
     const formData = new FormData();
     formData.append("apiKey", apiKey);
     formData.append("prompt", inputText);
     formData.append("model", model);
     formData.append("refinerModel", config.refinerModel);
-
     attachedFiles.forEach(file => { formData.append("files", file); });
     
-    // Scroll to bottom after submission
-    setTimeout(() => {
-        chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
-    }, 100);
-
+    // Очищаем поля после отправки
+    setInputText("");
+    setAttachedFiles([]);
+    
     try {
       const response = await fetch(`${config.backendUrl}/api/generate`, {
           method: "POST",
@@ -230,19 +281,24 @@ export default function App() {
         throw new Error(errorDetail);
       }
 
-      const data = await response.json();
-      setResponseParts(data);
+      const data: ResponsePart[] = await response.json();
+      // Добавляем ход AI в историю
+      setConversation(prev => [
+        ...prev, 
+        { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() }
+      ]);
+
     } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
-      setResponseParts([{ type: 'code', language: 'error', content: `Request failed: ${message}` }]);
+       // Добавляем ошибку как ход AI
+      setConversation(prev => [
+        ...prev,
+        { type: 'ai', parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }], timestamp: new Date().toLocaleTimeString() }
+      ]);
     } finally {
       setIsLoading(false);
-      setTimeout(() => {
-        chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
-      }, 100);
     }
   };
-
 
   return (
     <>
@@ -250,14 +306,13 @@ export default function App() {
     <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
-      {/* Header */}
-      <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm z-30">
+      <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/60 dark:bg-gray-900/60 backdrop-blur-md z-30">
         <div className="flex items-center gap-2">
           <GemIcon />
           <h1 className="text-xl font-semibold tracking-tight">{config.appTitle}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Toggle theme">
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Toggle theme">
             {isDarkMode ? <SunIcon /> : <MoonIcon />}
           </button>
           <button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
@@ -267,8 +322,7 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-        {/* Sidebar - API Configuration */}
-        <div className={`lg:col-span-1 rounded-xl p-6 shadow-sm backdrop-blur-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/70" : "bg-white/70"}`}>
+        <aside className={`lg:col-span-1 rounded-xl p-6 shadow-sm backdrop-blur-md border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
           <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
           <div className="space-y-4">
             <div>
@@ -289,43 +343,60 @@ export default function App() {
               <p className="text-xs text-gray-400">Connect your Gemini API key and start coding with the power of Google's most advanced models.</p>
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Chat Interface */}
-        <div className={`lg:col-span-2 rounded-xl overflow-hidden shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col ${isDarkMode ? "bg-gray-800/70" : "bg-white/70"}`}>
-          {/* Chat Messages */}
+        <div className={`lg:col-span-2 rounded-xl overflow-hidden shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
           <div ref={chatContainerRef} className="flex-grow h-[60vh] md:h-[70vh] overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
-            {isLoading && (<div className="flex items-center justify-center h-full text-center opacity-70"><SpinnerIcon className="w-8 h-8 mr-2"/> Gemini is thinking...</div>)}
-            {!isLoading && responseParts.length > 0 && (<div className="space-y-4">{responseParts.map((part, index) => <ResponseBlock key={index} part={part} isDarkMode={isDarkMode} />)}</div>)}
-            {!isLoading && responseParts.length === 0 && (
+            {conversation.length === 0 && !isLoading && (
               <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
                 <GemIcon className="w-16 h-16 mb-4" />
                 <h3 className="text-lg font-medium mb-1">Start your conversation</h3>
                 <p className="text-sm max-w-md">Enter your Gemini API key, select a model, and ask anything. You can upload files or folders too.</p>
               </div>
             )}
+            
+            {conversation.map((turn, index) => (
+              <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
+                {turn.type === 'user' ? (
+                  <div className="user-bubble">
+                    <ReactMarkdown className="prose dark:prose-invert max-w-none break-words">{turn.prompt}</ReactMarkdown>
+                    {turn.attachments.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-2">
+                        {turn.attachments.map((file, i) => <AttachmentChip key={i} file={file} />)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="ai-bubble">
+                    {turn.parts.map((part, i) => <ResponseBlock key={i} part={part} isDarkMode={isDarkMode} />)}
+                  </div>
+                )}
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-2">{turn.timestamp}</span>
+              </div>
+            ))}
+            
+            {isLoading && (
+                <div className="flex items-start gap-3">
+                    <div className="ai-bubble opacity-80">
+                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                           <SpinnerIcon className="w-5 h-5"/> Gemini is thinking...
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
           </div>
 
-          {/* Input Area */}
           <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
-             {/* --- ИНТЕГРИРОВАННЫЙ БЛОК ОТОБРАЖЕНИЯ ФАЙЛОВ --- */}
              {attachedFiles.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
-                {attachedFiles.map((file, index) => {
-                  const isRepo = file.name.startsWith('gh_repo:::');
-                  const isFolder = file.name.endsWith('.zip');
-                  let displayName: string = file.name;
-                  let Icon = FileIconForAttachment;
-                  if (isRepo) { displayName = file.name.replace('gh_repo:::', '').replace('_context.txt', '').replace(/---/g, '/'); Icon = GithubIconForAttachment; } 
-                  else if (isFolder) { displayName = file.name.replace('.zip', ''); Icon = FolderIconForAttachment; }
-                  return (
+                {attachedFiles.map((file, index) => (
                     <div key={`${file.name}-${index}`} className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
-                      <Icon />
-                      <span className="truncate" title={displayName}>{displayName}</span>
+                      <AttachmentChip file={file} />
                       <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-400 font-bold text-lg leading-none flex items-center justify-center w-4 h-4">×</button>
                     </div>
-                  );
-                })}
+                ))}
               </div>
             )}
             <div className="flex items-center gap-2 mb-3">
@@ -336,7 +407,7 @@ export default function App() {
               <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
             </div>
             <div className="relative">
-              <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Ask Gemini something..." rows={3}
+              <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }}} placeholder="Ask Gemini something..." rows={3}
                 className={`w-full px-4 py-3 pr-24 rounded-xl border ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"} focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none`}
               />
               <div className="absolute right-3 bottom-3 flex items-center gap-2">
@@ -349,7 +420,7 @@ export default function App() {
                 </div>
                 <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading}
                   className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {isLoading ? (<> <SpinnerIcon /> Processing... </>) : (<> Send <ArrowUpIcon /> </>)}
+                  {isLoading ? (<> <SpinnerIcon /> </> ) : (<ArrowUpIcon />)}
                 </button>
               </div>
             </div>
@@ -357,7 +428,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className={`mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500`}>
         <p>© 2025 Gemini Gateway Studio — Powered by Google AI</p>
       </footer>
