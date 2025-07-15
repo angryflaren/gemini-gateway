@@ -161,25 +161,24 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
 
 // --- 4. ОСНОВНОЙ КОМПОНЕНТ APP (ОБНОВЛЕННЫЙ) ---
 export default function App() {
-  // --- УПРАВЛЕНИЕ СОСТОЯНИЕМ (ПЕРЕРАБОТАНО) ---
+  // --- Состояние и референсы без изменений ---
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState(config.models[0].id);
   const [inputText, setInputText] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [conversation, setConversation] = useState<ConversationTurn[]>([]); // Главное изменение
+  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
   
-  // --- РЕФЕРЕНСЫ ---
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // --- ЛОГИКА ---
+  // --- Вся логика (useEffect, handle-функции) остается без изменений ---
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
   }, [isDarkMode]);
@@ -256,7 +255,6 @@ export default function App() {
     setError(null);
     const timestamp = new Date().toLocaleTimeString();
     
-    // Добавляем ход пользователя в историю
     setConversation(prev => [
       ...prev, 
       { type: 'user', prompt: inputText, attachments: attachedFiles, timestamp }
@@ -269,7 +267,6 @@ export default function App() {
     formData.append("refinerModel", config.refinerModel);
     attachedFiles.forEach(file => { formData.append("files", file); });
     
-    // Очищаем поля после отправки
     setInputText("");
     setAttachedFiles([]);
     
@@ -288,7 +285,6 @@ export default function App() {
       }
 
       const data: ResponsePart[] = await response.json();
-      // Добавляем ход AI в историю
       setConversation(prev => [
         ...prev, 
         { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() }
@@ -296,7 +292,6 @@ export default function App() {
 
     } catch (error) {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
-       // Добавляем ошибку как ход AI
       setConversation(prev => [
         ...prev,
         { type: 'ai', parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }], timestamp: new Date().toLocaleTimeString() }
@@ -308,136 +303,150 @@ export default function App() {
 
   return (
     <>
-    <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
-    <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
-      <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/60 dark:bg-gray-900/60 backdrop-blur-md z-30">
-        <div className="flex items-center gap-2">
-          <GemIcon />
-          <h1 className="text-xl font-semibold tracking-tight">{config.appTitle}</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Toggle theme">
-            {isDarkMode ? <SunIcon /> : <MoonIcon />}
-          </button>
-          <button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-            {config.helpButtonText}
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-        <aside className={`lg:col-span-1 rounded-xl p-6 shadow-sm backdrop-blur-md border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
-          <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="api-key" className="block text-sm font-medium mb-1">Gemini API Key</label>
-              <input id="api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..."
-                className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-              />
+      {/* ИСПРАВЛЕНИЕ 1: className теперь использует {} и `` */}
+      <div className={`h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+        <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/60 dark:bg-gray-900/60 backdrop-blur-md z-30">
+            {/* ...содержимое header без изменений... */}
+             <div className="flex items-center gap-2">
+                <GemIcon />
+                <h1 className="text-xl font-semibold tracking-tight">{config.appTitle}</h1>
             </div>
-            <div>
-              <label htmlFor="model-select" className="block text-sm font-medium mb-1">Select Gemini Model</label>
-              <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border appearance-none ${isDarkMode ? "bg-gray-700/50 border-gray-600" : "bg-gray-50 border-gray-300"} focus:outline-none`}>
-                {config.models.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-              </select>
-            </div>
-            <div className="pt-2">
-              <p className="text-xs text-gray-400 mb-2">This is a professional AI assistant for developers.</p>
-              <p className="text-xs text-gray-400">Connect your Gemini API key and start coding with the power of Google's most advanced models.</p>
-            </div>
-          </div>
-        </aside>
-
-        <div className={`lg:col-span-2 rounded-xl overflow-hidden shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
-          <div ref={chatContainerRef} className="flex-grow h-[60vh] md:h-[70vh] overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
-            {conversation.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
-                <GemIcon className="w-16 h-16 mb-4" />
-                <h3 className="text-lg font-medium mb-1">Start your conversation</h3>
-                <p className="text-sm max-w-md">Enter your Gemini API key, select a model, and ask anything. You can upload files or folders too.</p>
-              </div>
-            )}
-            
-            {conversation.map((turn, index) => (
-              <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
-                {turn.type === 'user' ? (
-                  <div className="user-bubble">
-                    <ReactMarkdown className="prose dark:prose-invert max-w-none break-words">{turn.prompt}</ReactMarkdown>
-                    {turn.attachments.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-2">
-                        {turn.attachments.map((file, i) => <AttachmentChip key={i} file={file} />)}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="ai-bubble">
-                    {turn.parts.map((part, i) => <ResponseBlock key={i} part={part} isDarkMode={isDarkMode} />)}
-                  </div>
-                )}
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-2">{turn.timestamp}</span>
-              </div>
-            ))}
-            
-            {isLoading && (
-                <div className="flex items-start gap-3">
-                    <div className="ai-bubble opacity-80">
-                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                           <SpinnerIcon className="w-5 h-5"/> Gemini is thinking...
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
-          </div>
-
-          <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
-             {attachedFiles.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {attachedFiles.map((file, index) => (
-                    <div key={`${file.name}-${index}`} className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
-                      <AttachmentChip file={file} />
-                      <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-400 font-bold text-lg leading-none flex items-center justify-center w-4 h-4">×</button>
-                    </div>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2 mb-3">
-              <button onClick={handleUploadFileClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach file"><PaperclipIcon /></button>
-              <button onClick={handleUploadFolderClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach folder"><FolderIcon /></button>
-              <button onClick={() => setIsRepoModalOpen(true)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach GitHub repo"><GithubIcon /></button>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
-              <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
-            </div>
-            <div className="relative">
-              <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }}} placeholder="Ask Gemini something..." rows={3}
-                className={`w-full px-4 py-3 pr-48 rounded-xl border ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"} focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none`}
-              />
-              <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <input type="checkbox" id="use-history" disabled className="w-3 h-3 rounded border-gray-600 accent-blue-600 cursor-not-allowed"/>
-                  <label htmlFor="use-history" className="cursor-not-allowed">Remember context</label>
-                  <span className="tooltip group relative inline-block ml-1"><InfoIcon />
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-90 whitespace-nowrap z-10">{config.dialog.historyToggleWarning}</span>
-                  </span>
-                </div>
-                <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading}
-                  className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {isLoading ? (<> <SpinnerIcon /> </> ) : (<ArrowUpIcon />)}
+            <div className="flex items-center gap-4">
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Toggle theme">
+                    {isDarkMode ? <SunIcon /> : <MoonIcon />}
                 </button>
+                <button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                    {config.helpButtonText}
+                </button>
+            </div>
+        </header>
+
+        {/* ИСПРАВЛЕНИЕ 2: Структура <main> и дочерних элементов полностью переработана */}
+        <main className="max-w-6xl w-full mx-auto grid flex-1 grid-cols-1 lg:grid-cols-3 gap-6 p-6 min-h-0">
+          
+          {/* Панель конфигурации API (1/3 ширины на больших экранах) */}
+          <aside className="lg:col-span-1 flex flex-col gap-4">
+            <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 h-fit ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
+              <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="api-key" className="block text-sm font-medium mb-1">Gemini API Key</label>
+                  <input id="api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..."
+                    className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="model-select" className="block text-sm font-medium mb-1">Select Gemini Model</label>
+                  <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-4 py-2 rounded-lg border appearance-none select-arrow bg-gray-50 border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400">
+                    {config.models.map((m) => ( <option key={m.id} value={m.id} className="dark:bg-slate-800">{m.name}</option>))}
+                  </select>
+                </div>
+                <div className="pt-2">
+                  <p className="text-xs text-gray-400 mb-2">This is a professional AI assistant for developers.</p>
+                  <p className="text-xs text-gray-400">Connect your Gemini API key and start coding with the power of Google's most advanced models.</p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </main>
+          </aside>
 
-      <footer className={`mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500`}>
-        <p>© 2025 Gemini Gateway Studio — Powered by Google AI</p>
-      </footer>
-    </div>
+          {/* Панель чата (2/3 ширины на больших экранах) */}
+          <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
+            
+            <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
+              {/* ИСПРАВЛЕНИЕ 3: Убрана лишняя скобка ')' */}
+              {conversation.length === 0 && !isLoading && (
+                  <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
+                    <GemIcon className="w-16 h-16 mb-4" />
+                    <h3 className="text-lg font-medium mb-1">Start your conversation</h3>
+                    <p className="text-sm max-w-md">Enter your Gemini API key, select a model, and ask anything. You can upload files or folders too.</p>
+                  </div>
+              )}
+              
+              {conversation.map((turn, index) => (
+                // ИСПРАВЛЕНИЕ 4: className
+                <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
+                  {turn.type === 'user' ? (
+                    <div className="user-bubble">
+                      <ReactMarkdown className="prose dark:prose-invert max-w-none break-words">{turn.prompt}</ReactMarkdown>
+                      {turn.attachments.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-2">
+                          {turn.attachments.map((file, i) => <AttachmentChip key={i} file={file} />)}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="ai-bubble">
+                      {turn.parts.map((part, i) => <ResponseBlock key={i} part={part} isDarkMode={isDarkMode} />)}
+                    </div>
+                  )}
+                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2">{turn.timestamp}</span>
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex items-start gap-3">
+                  <div className="ai-bubble opacity-80">
+                    <div className="flex items-center gap-2">
+                      <SpinnerIcon className="w-5 h-5"/> Gemini is thinking...
+                    </div>
+                  </div>
+                </div>
+              )}
+              {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
+            </div>
+
+            {/* Панель ввода */}
+            <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
+              {attachedFiles.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {attachedFiles.map((file, index) => (
+                      // ИСПРАВЛЕНИЕ 5: className в key
+                      <div key={`${file.name}-${index}`} className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
+                        <AttachmentChip file={file} />
+                        <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-400 font-bold text-lg leading-none flex items-center justify-center w-4 h-4">×</button>
+                      </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={handleUploadFileClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach file"><PaperclipIcon /></button>
+                <button onClick={handleUploadFolderClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach folder"><FolderIcon /></button>
+                <button onClick={() => setIsRepoModalOpen(true)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach GitHub repo"><GithubIcon /></button>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+                <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
+              </div>
+              <div className="relative">
+                {/* ИСПРАВЛЕНИЕ 6: className */}
+                <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }}} placeholder="Ask Gemini something..." rows={3}
+                  className={`w-full px-4 py-3 pr-48 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
+                />
+                <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <input type="checkbox" id="use-history" disabled className="w-3 h-3 rounded border-gray-600 accent-blue-600 cursor-not-allowed"/>
+                    <label htmlFor="use-history" className="cursor-not-allowed">Remember context</label>
+                    <span className="tooltip group relative inline-block ml-1"><InfoIcon />
+                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-90 whitespace-nowrap z-10">{config.dialog.historyToggleWarning}</span>
+                    </span>
+                  </div>
+                  {/* ИСПРАВЛЕНИЕ 7: className */}
+                  <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading}
+                    className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </main>
+
+        <footer className="mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500">
+          <p>© 2025 Gemini Gateway Studio — Powered by Google AI</p>
+        </footer>
+      </div>
     </>
   );
 }
