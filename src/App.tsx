@@ -101,8 +101,14 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         case 'code':
             const codeContent = String(part.content || '');
             return (
-                <div className="relative group my-4 rounded-md bg-[#282c34]"><button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}</button>
-                <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{ margin: 0, padding: '1rem', paddingTop: '1rem', backgroundColor: 'transparent', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{codeContent}</SyntaxHighlighter>
+                <div className="relative group my-4 rounded-md bg-[#282c34] overflow-x-auto">{/* ДОБАВЛЕНО: overflow-x-auto */}
+                    <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 0 00-2 2v8a2 0 002 2z" /></svg>}</button>
+                    <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{
+                        margin: 0, 
+                        padding: '1rem', 
+                        paddingTop: '1rem', 
+                        backgroundColor: 'transparent'
+                    }}>{codeContent}</SyntaxHighlighter>
                 </div>
             );
         case 'math': return <BlockMath math={part.content} />;
@@ -408,7 +414,7 @@ export default function App() {
             </div>
             <div className="relative">
               <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }}} placeholder="Ask Gemini something..." rows={3}
-                className={`w-full px-4 py-3 pr-24 rounded-xl border ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"} focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none`}
+                className={`w-full px-4 py-3 pr-48 rounded-xl border ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"} focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none`}
               />
               <div className="absolute right-3 bottom-3 flex items-center gap-2">
                 <div className="flex items-center gap-1 text-xs text-gray-500">
