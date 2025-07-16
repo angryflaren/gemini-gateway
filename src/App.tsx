@@ -6,6 +6,7 @@ import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/pris
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm'; // <-- 1. ИМПОРТ GFM
 import JSZip from 'jszip';
 import { config } from "./config";
 
@@ -40,7 +41,7 @@ interface AITurn {
 type ConversationTurn = UserTurn | AITurn;
 
 
-// --- 2. ИКОНКИ ---
+// --- 2. ИКОНКИ (без изменений) ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>);
 const SunIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" /><path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>);
 const MoonIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -88,29 +89,46 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         });
     };
 
+    // <-- 2. ГЛОБАЛЬНЫЕ ПЛАГИНЫ ДЛЯ MARKDOWN
+    const markdownPlugins = [remarkMath, remarkGfm];
+    const htmlPlugins = [rehypeKatex];
+
     switch (part.type) {
-        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown>{part.subtitle}</ReactMarkdown></p>}</div>);
-        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h2>;
-        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h3>;
+        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
+        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h2>;
+        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h3>;
         case 'annotated_heading': return (<div className="flex items-center gap-3 pt-4"><h4 className="text-lg font-semibold break-words">{part.content}</h4><span className="info-tag">{part.tag}</span></div>);
-        case 'quote_heading': return (<div className="my-4 border-l-4 p-4 rounded-r-lg quote-heading-container"><p className="text-lg font-medium italic quote-text"><ReactMarkdown>{part.content}</ReactMarkdown></p>{part.source && <cite className="block text-right text-sm mt-2 not-italic quote-cite">— {part.source}</cite>}</div>);
-        case 'text': return (<ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{part.content}</ReactMarkdown>);
+        
+        // <-- 3. ИСПРАВЛЕНИЕ СЕМАНТИКИ ЦИТАТ
+        case 'quote_heading': return (
+            <blockquote className="my-4 border-l-4 p-4 rounded-r-lg quote-heading-container">
+                <p className="text-lg font-medium italic quote-text">
+                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>
+                </p>
+                {part.source && (
+                    <footer className="block text-right text-sm mt-2 not-italic quote-cite">
+                        — <cite>{part.source}</cite>
+                    </footer>
+                )}
+            </blockquote>
+        );
+        case 'text': return (<ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>);
         case 'code':
             const codeContent = String(part.content || '');
             return (
-                // ИСПРАВЛЕНИЕ 3 и 4: Добавлен overflow-x-auto и адаптивный фон
                 <div className="relative group my-4 rounded-md bg-gray-200 dark:bg-[#282c34] overflow-x-auto">
                     <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}</button>
                     <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{
                         margin: 0, 
                         padding: '1rem', 
                         paddingTop: '1rem', 
-                        backgroundColor: 'transparent' // Фон теперь на родительском div
+                        backgroundColor: 'transparent'
                     }}>{codeContent}</SyntaxHighlighter>
                 </div>
             );
         case 'math': return <BlockMath math={part.content} />;
-        case 'list': return (<ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">{part.items.map((item, i) => (<li key={i}><ReactMarkdown>{item}</ReactMarkdown></li>))}</ul>);
+        // Замечание: компонент `list` оставлен без изменений, так как `remark-gfm` в `text` является более надежным решением
+        case 'list': return (<ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">{part.items.map((item, i) => (<li key={i}><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{item}</ReactMarkdown></li>))}</ul>);
         default:
             const unknownPart = part as any;
             return (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong className="font-bold">Unknown Block Type!</strong><span className="block sm:inline"> An unknown block type '{unknownPart?.type}' was received.</span><pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre></div>);
@@ -320,8 +338,8 @@ export default function App() {
         <main className="max-w-6xl w-full mx-auto grid flex-1 grid-cols-1 lg:grid-cols-3 gap-6 p-6 min-h-0">
           
           <aside className="lg:col-span-1 flex flex-col gap-4">
-            {/* ИСПРАВЛЕНИЕ 5: Удален класс `h-fit` для корректного выравнивания по высоте */}
-            <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
+            {/* <-- 4. ИСПРАВЛЕНИЕ ВЫРАВНИВАНИЯ --> */}
+            <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1`}>
               <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
               <div className="space-y-4">
                 <div>
@@ -359,7 +377,7 @@ export default function App() {
                 <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
                   {turn.type === 'user' ? (
                     <div className="user-bubble">
-                      <ReactMarkdown className="prose dark:prose-invert max-w-none break-words">{turn.prompt}</ReactMarkdown>
+                      <ReactMarkdown className="prose dark:prose-invert max-w-none break-words" remarkPlugins={[remarkGfm]}>{turn.prompt}</ReactMarkdown>
                       {turn.attachments.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-2">
                           {turn.attachments.map((file, i) => <AttachmentChip key={i} file={file} />)}
@@ -414,7 +432,6 @@ export default function App() {
                     <input type="checkbox" id="use-history" disabled className="w-3 h-3 rounded border-gray-600 accent-blue-600 cursor-not-allowed"/>
                     <label htmlFor="use-history" className="cursor-not-allowed">Remember context</label>
                     <span className="tooltip group relative inline-block ml-1"><InfoIcon />
-                      {/* ИСПРАВЛЕНИЕ 1: Изменены классы для корректного отображения подсказки */}
                       <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded opacity-90 w-64 text-center z-10 whitespace-normal">{config.dialog.historyToggleWarning}</span>
                     </span>
                   </div>
