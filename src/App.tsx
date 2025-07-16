@@ -9,7 +9,7 @@ import rehypeKatex from 'rehype-katex';
 import JSZip from 'jszip';
 import { config } from "./config";
 
-// --- 1. ТИПЫ ДАННЫХ (ОБНОВЛЕННЫЕ) ---
+// --- 1. ТИПЫ ДАННЫХ ---
 interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
 interface SubheadingPart { type: 'subheading'; content: string; }
@@ -24,7 +24,6 @@ type ResponsePart =
   | TitlePart | HeadingPart | SubheadingPart | AnnotatedHeadingPart
   | QuoteHeadingPart | TextPart | CodePart | MathPart | ListPart;
 
-// НОВЫЕ ТИПЫ ДЛЯ ИСТОРИИ ДИАЛОГА
 interface UserTurn {
   type: 'user';
   prompt: string;
@@ -41,7 +40,7 @@ interface AITurn {
 type ConversationTurn = UserTurn | AITurn;
 
 
-// --- 2. ИКОНКИ (без изменений) ---
+// --- 2. ИКОНКИ ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>);
 const SunIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" /><path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>);
 const MoonIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -55,7 +54,7 @@ const FileIconForAttachment = () => ( <svg viewBox="0 0 24 24" fill="currentColo
 const FolderIconForAttachment = () => ( <svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const GithubIconForAttachment = () => ( <svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 
-// --- 3. ВСПОМОГАТЕЛЬНЫЕ и НОВЫЕ КОМПОНЕНТЫ ---
+// --- 3. ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 
 const AttachmentChip = ({ file }: { file: File }) => {
   const isRepo = file.name.startsWith('gh_repo:::');
@@ -79,9 +78,7 @@ const AttachmentChip = ({ file }: { file: File }) => {
   );
 };
 
-
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
-    // ... (содержимое ResponseBlock без изменений)
     const [copied, setCopied] = useState(false);
     const handleCopy = (contentToCopy: string) => {
         if (typeof contentToCopy !== 'string') return;
@@ -101,13 +98,14 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         case 'code':
             const codeContent = String(part.content || '');
             return (
-                <div className="relative group my-4 rounded-md bg-[#282c34] overflow-x-auto">{/* ДОБАВЛЕНО: overflow-x-auto */}
-                    <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 0 00-2 2v8a2 0 002 2z" /></svg>}</button>
+                // ИСПРАВЛЕНИЕ 3 и 4: Добавлен overflow-x-auto и адаптивный фон
+                <div className="relative group my-4 rounded-md bg-gray-200 dark:bg-[#282c34] overflow-x-auto">
+                    <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}</button>
                     <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{
                         margin: 0, 
                         padding: '1rem', 
                         paddingTop: '1rem', 
-                        backgroundColor: 'transparent'
+                        backgroundColor: 'transparent' // Фон теперь на родительском div
                     }}>{codeContent}</SyntaxHighlighter>
                 </div>
             );
@@ -119,7 +117,6 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     }
 });
 
-// ... (Компоненты HelpModal и RepoCloneModal без изменений)
 const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     if (!isOpen) return null;
     return (
@@ -159,9 +156,8 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
     );
   };
 
-// --- 4. ОСНОВНОЙ КОМПОНЕНТ APP (ОБНОВЛЕННЫЙ) ---
+// --- 4. ОСНОВНОЙ КОМПОНЕНТ APP ---
 export default function App() {
-  // --- Состояние и референсы без изменений ---
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState(config.models[0].id);
@@ -178,7 +174,6 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Вся логика (useEffect, handle-функции) остается без изменений ---
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
   }, [isDarkMode]);
@@ -306,10 +301,8 @@ export default function App() {
       <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      {/* ИСПРАВЛЕНИЕ 1: className теперь использует {} и `` */}
       <div className={`h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
         <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/60 dark:bg-gray-900/60 backdrop-blur-md z-30">
-            {/* ...содержимое header без изменений... */}
              <div className="flex items-center gap-2">
                 <GemIcon />
                 <h1 className="text-xl font-semibold tracking-tight">{config.appTitle}</h1>
@@ -324,12 +317,11 @@ export default function App() {
             </div>
         </header>
 
-        {/* ИСПРАВЛЕНИЕ 2: Структура <main> и дочерних элементов полностью переработана */}
         <main className="max-w-6xl w-full mx-auto grid flex-1 grid-cols-1 lg:grid-cols-3 gap-6 p-6 min-h-0">
           
-          {/* Панель конфигурации API (1/3 ширины на больших экранах) */}
           <aside className="lg:col-span-1 flex flex-col gap-4">
-            <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 h-fit ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
+            {/* ИСПРАВЛЕНИЕ 5: Удален класс `h-fit` для корректного выравнивания по высоте */}
+            <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
               <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
               <div className="space-y-4">
                 <div>
@@ -352,11 +344,9 @@ export default function App() {
             </div>
           </aside>
 
-          {/* Панель чата (2/3 ширины на больших экранах) */}
           <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
             
             <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
-              {/* ИСПРАВЛЕНИЕ 3: Убрана лишняя скобка ')' */}
               {conversation.length === 0 && !isLoading && (
                   <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
                     <GemIcon className="w-16 h-16 mb-4" />
@@ -366,7 +356,6 @@ export default function App() {
               )}
               
               {conversation.map((turn, index) => (
-                // ИСПРАВЛЕНИЕ 4: className
                 <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
                   {turn.type === 'user' ? (
                     <div className="user-bubble">
@@ -398,12 +387,10 @@ export default function App() {
               {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
             </div>
 
-            {/* Панель ввода */}
             <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
               {attachedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {attachedFiles.map((file, index) => (
-                      // ИСПРАВЛЕНИЕ 5: className в key
                       <div key={`${file.name}-${index}`} className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
                         <AttachmentChip file={file} />
                         <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-400 font-bold text-lg leading-none flex items-center justify-center w-4 h-4">×</button>
@@ -419,7 +406,6 @@ export default function App() {
                 <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
               </div>
               <div className="relative">
-                {/* ИСПРАВЛЕНИЕ 6: className */}
                 <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }}} placeholder="Ask Gemini something..." rows={3}
                   className={`w-full px-4 py-3 pr-48 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
                 />
@@ -428,10 +414,10 @@ export default function App() {
                     <input type="checkbox" id="use-history" disabled className="w-3 h-3 rounded border-gray-600 accent-blue-600 cursor-not-allowed"/>
                     <label htmlFor="use-history" className="cursor-not-allowed">Remember context</label>
                     <span className="tooltip group relative inline-block ml-1"><InfoIcon />
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-90 whitespace-nowrap z-10">{config.dialog.historyToggleWarning}</span>
+                      {/* ИСПРАВЛЕНИЕ 1: Изменены классы для корректного отображения подсказки */}
+                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded opacity-90 w-64 text-center z-10 whitespace-normal">{config.dialog.historyToggleWarning}</span>
                     </span>
                   </div>
-                  {/* ИСПРАВЛЕНИЕ 7: className */}
                   <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading}
                     className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
