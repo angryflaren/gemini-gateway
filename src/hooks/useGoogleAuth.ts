@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { gapi } from 'gapi-script';
+import { gapi }s from 'gapi-script';
 import { config } from '../config';
 import { UserProfile } from '../types';
 
@@ -44,7 +44,8 @@ export const useGoogleAuth = () => {
             });
         };
 
-        gapi.load('client:auth2', initClient);
+        // Загружаем gapi и только потом вызываем initClient
+        gapi.load('client:auth2', initClient); 
     }, []);
 
     const signIn = async () => {
