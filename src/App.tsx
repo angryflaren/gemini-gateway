@@ -143,6 +143,8 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
 };
 
 const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: UserProfile | null, onLogin: () => void, onLogout: () => void, isLoading: boolean, isReady: boolean }) => {
+    // Этот компонент не требует изменений, так как интерфейс хука сохранен.
+    // ...
     if (user) {
         return (
             <div className="relative group">
@@ -159,7 +161,6 @@ const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: Us
             </div>
         );
     }
-
     return (
         <button
             onClick={onLogin}
