@@ -14,7 +14,7 @@ declare global {
 // Утилита для загрузки скрипта GAPI
 const loadGapiScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src=\"https://apis.google.com/js/api.js\"]')) {
+    if (document.querySelector('script[src="https://apis.google.com/js/api.js"]')) {
       // Если скрипт уже есть, дожидаемся готовности gapi.client
       const interval = setInterval(() => {
         if (window.gapi?.client) {
@@ -29,7 +29,7 @@ const loadGapiScript = (): Promise<void> => {
     script.async = true;
     script.defer = true;
     script.onload = () => {
-       // После загрузки скрипта нужно явно загрузить сам \"client\" модуль.
+       // После загрузки скрипта нужно явно загрузить сам "client" модуль.
        window.gapi.load('client', resolve);
     };
     script.onerror = () => reject(new Error('Failed to load GAPI script.'));
@@ -107,7 +107,8 @@ export const useGoogleAuth = () => {
 
             } catch (error) {
                 console.error("Critical GAPI/GIS initialization failed:", error);
-                alert(\"Failed to initialize Google services. Please check the console and refresh the page.\");
+                // Corrected line 110
+                alert("Failed to initialize Google services. Please check the console and refresh the page.");
                 setIsInitialized(false);
             } finally {
                 setIsLoading(false);
@@ -119,12 +120,13 @@ export const useGoogleAuth = () => {
         if (window.google) {
           initializeAuth();
         } else {
-          const gsiScript = document.querySelector('script[src=\"https://accounts.google.com/gsi/client\"]');
+          const gsiScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
           if (gsiScript) {
             gsiScript.addEventListener('load', initializeAuth);
           } else {
-             console.error(\"Fatal: Google Sign-In script (GSI) not found in index.html.\");
-             setIsLoading(false);
+              // Corrected line 164
+              console.error("Fatal: Google Sign-In script (GSI) not found in index.html.");
+              setIsLoading(false);
           }
         }
 
