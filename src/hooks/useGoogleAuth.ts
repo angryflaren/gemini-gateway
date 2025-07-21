@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { gapi }s from 'gapi-script';
+import { gapi } from 'gapi-script';
 import { config } from '../config';
 import { UserProfile } from '../types';
 
