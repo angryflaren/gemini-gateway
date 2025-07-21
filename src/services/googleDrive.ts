@@ -43,7 +43,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
         fileId: fileId,
         alt: 'media',
     });
-    // ИСПРАВЛЕНИЕ: Для запросов с alt: 'media' тело ответа находится в response.body в виде строки
     return JSON.parse(response.body) as ChatContent;
 };
 
