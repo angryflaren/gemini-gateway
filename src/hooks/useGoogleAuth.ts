@@ -3,71 +3,49 @@ import { useState, useEffect, useCallback } from 'react';
 import { config } from '../config';
 import { UserProfile } from '../types';
 
-// Расширяем глобальный интерфейс Window, чтобы TypeScript знал о gapi, google и tokenClient
 declare global {
   interface Window {
-    google: any; // Для Google Identity Services (GIS)
-    gapi: any;   // Для Google API Client Library (GAPI)
-    tokenClient: any; // Для клиента получения токенов от GIS
+    google: any;
+    gapi: any;
+    tokenClient: any;
   }
 }
 
-/**
- * Утилита для асинхронной загрузки скрипта Google API Client (GAPI).
- * GAPI нужен для совершения запросов к API, таким как Google Drive.
- * @returns {Promise<void>} Промис, который разрешается после загрузки и инициализации клиента GAPI.
- */
-const loadGapiScript = (): Promise<void> => {
+const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
+const GSI_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
+const SESSION_STORAGE_KEY = 'google-auth-token';
+
+// --- Утилиты для загрузки скриптов ---
+
+const loadScript = (src: string): Promise<void> => {
   return new Promise((resolve, reject) => {
-    // Проверяем, не был ли скрипт уже загружен ранее
-    if (document.querySelector('script[src="https://apis.google.com/js/api.js"]')) {
-      // Если скрипт уже есть, просто ждем готовности gapi.client
-      const interval = setInterval(() => {
-        if (window.gapi?.client) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 100);
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
       return;
     }
-    
     const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
+    script.src = src;
     script.async = true;
     script.defer = true;
-    script.onload = () => {
-       // После загрузки основного скрипта, нужно явно загрузить 'client' модуль GAPI.
-       window.gapi.load('client', resolve);
-    };
-    script.onerror = () => reject(new Error('Failed to load GAPI script.'));
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
     document.body.appendChild(script);
   });
 };
 
+// --- Основной хук ---
 
-/**
- * Хук для управления аутентификацией Google.
- * Управляет состоянием пользователя, инициализацией и процессом входа/выхода.
- */
 export const useGoogleAuth = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    
-    /**
-     * Получает информацию о профиле пользователя с помощью access token.
-     */
+
     const fetchUserProfile = useCallback(async (token: string) => {
         try {
             const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!response.ok) {
-                // Если запрос не удался, выбрасываем ошибку с деталями
-                const errorBody = await response.json();
-                console.error("User info fetch failed:", errorBody);
-                throw new Error('Failed to fetch user profile. Status: ' + response.status);
-            }
+            if (!response.ok) throw new Error('Failed to fetch user profile.');
             const profile = await response.json();
             setUser({
                 id: profile.sub,
@@ -77,113 +55,87 @@ export const useGoogleAuth = () => {
             });
         } catch (error) {
             console.error("Error fetching user profile:", error);
-            setUser(null); // Сбрасываем пользователя в случае ошибки
+            // Если профиль не удалось получить, сбрасываем сессию
+            signOut();
         }
     }, []);
 
-    // Основной useEffect для инициализации всей системы аутентификации
-    useEffect(() => {
-        const initializeAuth = async () => {
-            setIsLoading(true);
-            try {
-                // ШАГ 1: Параллельно загружаем GAPI скрипт
-                await loadGapiScript();
+    const signOut = useCallback(() => {
+        const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (storedToken) {
+            const tokenData = JSON.parse(storedToken);
+            if (tokenData.access_token) {
+                window.google?.accounts.oauth2.revoke(tokenData.access_token, () => {});
+            }
+        }
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        if (window.gapi?.client) window.gapi.client.setToken(null);
+        setUser(null);
+    }, []);
 
-                // ШАГ 2: Инициализируем GAPI клиент для Google Drive API.
-                // Этот шаг подготавливает gapi.client для совершения запросов к API.
-                // API Key не требуется, так как мы будем использовать OAuth 2.0 токен.
+
+    useEffect(() => {
+        const initialize = async () => {
+            try {
+                // Загружаем оба скрипта параллельно
+                await Promise.all([loadScript(GSI_SCRIPT_URL), loadScript(GAPI_SCRIPT_URL)]);
+
+                // Дожидаемся готовности GAPI клиента
+                await new Promise<void>((resolve) => window.gapi.load('client', resolve));
+
                 await window.gapi.client.init({
                     discoveryDocs: config.google.discoveryDocs,
                 });
-                
-                // ШАГ 3: Инициализируем GIS Token Client.
-                // Этот клиент отвечает за получение и обновление access token.
+
                 window.tokenClient = window.google.accounts.oauth2.initTokenClient({
                     client_id: config.google.clientId,
                     scope: config.google.scope,
                     callback: async (tokenResponse: any) => {
-                        setIsLoading(true);
                         if (tokenResponse.error) {
-                            console.error("OAuth Token Error:", tokenResponse.error, tokenResponse.error_description);
-                            alert(`Authentication failed: ${tokenResponse.error_description || tokenResponse.error}`);
-                            setUser(null);
-                            setIsLoading(false);
-                            return;
+                             console.error("OAuth Error:", tokenResponse.error);
+                             signOut(); // Очищаем всё в случае ошибки
+                             return;
                         }
-
-                        if (tokenResponse.access_token && window.gapi?.client) {
-                            // Устанавливаем полученный токен в GAPI-клиент для всех последующих запросов
-                            window.gapi.client.setToken({ access_token: tokenResponse.access_token });
-                            await fetchUserProfile(tokenResponse.access_token);
-                        } else {
-                             console.error("GAPI client not ready or access token missing in response.");
-                             setUser(null);
-                        }
+                        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(tokenResponse));
+                        window.gapi.client.setToken(tokenResponse);
+                        await fetchUserProfile(tokenResponse.access_token);
                         setIsLoading(false);
                     },
                 });
 
-                // ШАГ 4: Система готова к использованию
+                // Проверяем наличие токена в sessionStorage при загрузке
+                const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (storedToken) {
+                    const tokenData = JSON.parse(storedToken);
+                    // Проверяем, не истек ли токен (хотя GIS обычно сам его обновляет)
+                    if (tokenData.expires_in > 0) {
+                         window.gapi.client.setToken(tokenData);
+                         await fetchUserProfile(tokenData.access_token);
+                    } else {
+                        // Токен истек, чистим
+                        signOut();
+                    }
+                }
+                
                 setIsInitialized(true);
-
             } catch (error) {
-                console.error("Critical GAPI/GIS initialization failed:", error);
-                alert("Failed to initialize Google services. Please check the console and refresh the page.");
-                setIsInitialized(false);
+                console.error("Google Auth initialization failed:", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        // GSI скрипт загружается асинхронно из index.html. Нам нужно дождаться его загрузки.
-        // `window.google` создается этим скриптом.
-        if (window.google) {
-          initializeAuth();
-        } else {
-          // Если скрипта еще нет, вешаем на него слушатель события 'load'
-          const gsiScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-          if (gsiScript) {
-            gsiScript.addEventListener('load', initializeAuth);
-          } else {
-              console.error("Fatal: Google Sign-In script (GSI) not found in index.html. Make sure it's included.");
-              setIsLoading(false);
-          }
-        }
+        initialize();
+    }, [fetchUserProfile, signOut]);
 
-    }, [fetchUserProfile]); // Зависимость от fetchUserProfile обязательна
-
-    /**
-     * Инициирует процесс входа в систему.
-     */
     const signIn = useCallback(() => {
         if (!isInitialized || !window.tokenClient) {
-            console.error("Auth system is not ready or token client is not initialized.");
-            alert("Authentication service is not ready, please try again in a moment.");
+            console.error("Auth system not ready.");
             return;
         }
         setIsLoading(true);
-        // Запрашиваем токен. Коллбэк, определенный в useEffect, обработает результат.
-        // prompt: '' предотвращает автоматический выбор аккаунта без явного согласия пользователя
-        window.tokenClient.requestAccessToken({ prompt: '' });
+        window.tokenClient.requestAccessToken({ prompt: 'consent' });
     }, [isInitialized]);
-
-    /**
-     * Выполняет выход из системы.
-     */
-    const signOut = useCallback(() => {
-        const token = window.gapi?.client?.getToken();
-        if (token?.access_token) {
-            // Отзываем токен на стороне Google для повышения безопасности
-            window.google.accounts.oauth2.revoke(token.access_token, () => {
-                window.gapi.client.setToken(null);
-                setUser(null);
-            });
-        } else {
-             // В любом случае выходим из системы на клиенте
-            if(window.gapi?.client) window.gapi.client.setToken(null);
-            setUser(null);
-        }
-    }, []);
 
     return { user, signIn, signOut, isInitialized, isLoading };
 };
