@@ -14,7 +14,7 @@ import { ResponsePart, ConversationTurn, Chat, ChatContent, UserProfile } from "
 import { listChats, getChatContent, saveChat, createNewChatFile, renameChatFile } from "./services/googleDrive";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
-// --- ИКОНКИ (добавлена иконка редактирования) ---
+// --- ИКОНКИ ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const PaperclipIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.44 11.05L12.39 19.64C11.11 20.87 9.07 21.01 7.64 19.93C6.21 18.85 6.04 16.86 7.27 15.58L15.86 6.53C16.65 5.74 17.91 5.74 18.7 6.53C19.49 7.32 19.49 8.58 18.7 9.37L10.11 18.42C9.67 18.86 9.01 19.03 8.38 18.85C7.75 18.67 7.23 18.16 7.05 17.53C6.87 16.9 7.04 16.24 7.48 15.8L16.03 6.75C17.26 5.47 19.3 5.33 20.38 6.41C21.46 7.49 21.6 9.53 20.32 10.81L11.27 19.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const FolderIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 10H12L10 8H2C1.45 8 1 8.45 1 9V19C1 19.55 1.45 20 2 20H22C22.55 20 23 19.55 23 19V11C23 10.45 22.55 10 22 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -27,7 +27,6 @@ const FileIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor
 const FolderIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const GithubIconForAttachment = () => (<svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 const EditIcon = ({ className = "w-4 h-4" }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>);
-
 
 // --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void }) => {
@@ -191,7 +190,12 @@ export default function App() {
     const [model, setModel] = useState(config.models[0].id);
     const [inputText, setInputText] = useState("");
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    
+    // Состояние загрузки AI ответа
     const [isLoading, setIsLoading] = useState(false);
+    // Состояние загрузки контента чата
+    const [isContentLoading, setIsContentLoading] = useState(false);
+    
     const [error, setError] = useState<string | null>(null);
 
     const { user, signIn, signOut, isInitialized, isLoading: isAuthLoading } = useGoogleAuth();
@@ -200,7 +204,6 @@ export default function App() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [activeChatContent, setActiveChatContent] = useState<ChatContent | null>(null);
     
-    // **НОВОЕ СОСТОЯНИЕ ДЛЯ РЕДАКТИРОВАНИЯ**
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [editingChatName, setEditingChatName] = useState("");
 
@@ -213,7 +216,6 @@ export default function App() {
     const folderInputRef = useRef<HTMLInputElement>(null);
     const renameInputRef = useRef<HTMLInputElement>(null);
 
-
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
     }, [isDarkMode]);
@@ -224,14 +226,13 @@ export default function App() {
         }
     }, [activeChatContent?.conversation, isLoading]);
 
-    // **ИЗМЕНЕНИЕ**: Загрузка контента активного чата при изменении ID
     useEffect(() => {
         const loadChatContent = async () => {
-            if (!activeChatId) {
+            if (!activeChatId || !user) {
                 setActiveChatContent(null);
                 return;
             }
-            setIsLoading(true);
+            setIsContentLoading(true);
             setError(null);
             try {
                 const chatContent = await getChatContent(activeChatId);
@@ -241,13 +242,12 @@ export default function App() {
                 setError("Could not load the selected chat.");
                 setActiveChatContent(null);
             } finally {
-                setIsLoading(false);
+                setIsContentLoading(false);
             }
         };
         loadChatContent();
-    }, [activeChatId]);
+    }, [activeChatId, user]);
 
-    // **ИЗМЕНЕНИЕ**: фокус на поле ввода при начале редактирования
     useEffect(() => {
         if (editingChatId && renameInputRef.current) {
             renameInputRef.current.focus();
@@ -255,27 +255,30 @@ export default function App() {
         }
     }, [editingChatId]);
 
-
-    const refreshChats = useCallback(async (selectChatId: string | 'first' | null = null) => {
+    const refreshChats = useCallback(async (selectChatId?: string | 'first') => {
         if (!user || !isInitialized) return;
         try {
             const chatList = await listChats();
             setChats(chatList);
+
             if (selectChatId === 'first' && chatList.length > 0) {
                 setActiveChatId(chatList[0].id);
             } else if (typeof selectChatId === 'string') {
                 setActiveChatId(selectChatId);
+            } else if (!activeChatId && chatList.length > 0) {
+                setActiveChatId(chatList[0].id);
+            } else if (chatList.length === 0) {
+                setActiveChatId(null);
             }
         } catch (err) {
             console.error("Failed to list chats:", err);
             setError("Could not load chats from Google Drive.");
         }
-    }, [user, isInitialized]);
-
+    }, [user, isInitialized, activeChatId]);
 
     useEffect(() => {
         if (user && isInitialized) {
-            refreshChats('first'); 
+            refreshChats(); 
         } else if (!user && isInitialized) {
             setChats([]);
             setActiveChatId(null);
@@ -283,10 +286,8 @@ export default function App() {
         }
     }, [user, isInitialized, refreshChats]);
 
-    // **НОВАЯ ЛОГИКА**: Создание чата сразу в Drive
     const handleCreateNewChat = async () => {
-        if (isLoading || isAuthLoading) return;
-        setIsLoading(true);
+        if (isAuthLoading) return;
         setError(null);
         try {
             const newChat = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
@@ -295,12 +296,9 @@ export default function App() {
         } catch (err) {
             console.error("Failed to create new chat:", err);
             setError("Could not create a new chat in Google Drive.");
-        } finally {
-            setIsLoading(false);
         }
     };
     
-    // **НОВАЯ ЛОГИКА**: Функции для переименования
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
         setEditingChatName(chat.name);
@@ -311,35 +309,37 @@ export default function App() {
         setEditingChatName("");
     };
 
-    const handleRenameChat = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRenameChat = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!editingChatId || !editingChatName.trim()) {
             handleCancelEditing();
             return;
         }
 
-        const originalName = chats.find(c => c.id === editingChatId)?.name;
-        if (originalName === editingChatName.trim()) {
+        const originalChat = chats.find(c => c.id === editingChatId);
+        if (originalChat?.name === editingChatName.trim()) {
             handleCancelEditing();
             return;
         }
 
-        setIsLoading(true);
+        const newName = editingChatName.trim();
+        setChats(prev => prev.map(c => c.id === editingChatId ? { ...c, name: newName } : c));
+        if (activeChatId === editingChatId) {
+            setActiveChatContent(prev => prev ? { ...prev, name: newName } : null);
+        }
+        
+        const originalId = editingChatId;
+        handleCancelEditing();
+
         try {
-            await renameChatFile(editingChatId, editingChatName.trim());
-            // Обновляем состояние локально для мгновенного отклика
-            setChats(prev => prev.map(c => c.id === editingChatId ? { ...c, name: editingChatName.trim() } : c));
-            if (activeChatId === editingChatId) {
-                setActiveChatContent(prev => prev ? { ...prev, name: editingChatName.trim() } : null);
-            }
+            await renameChatFile(originalId, newName);
         } catch (err) {
             console.error("Failed to rename chat:", err);
-            setError("Could not rename the chat.");
-            // Откатываем изменение в случае ошибки
-            setChats(prev => prev.map(c => c.id === editingChatId ? { ...c, name: originalName || c.name } : c));
-        } finally {
-            setIsLoading(false);
-            handleCancelEditing();
+            setError("Could not rename the chat. Reverting change.");
+            setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: originalChat?.name || c.name } : c));
+            if (activeChatId === originalId) {
+                setActiveChatContent(prev => prev ? { ...prev, name: originalChat?.name || prev.name } : null);
+            }
         }
     };
     
@@ -403,7 +403,7 @@ export default function App() {
 
     const handleSubmit = async () => {
         if (!apiKey) { alert("Please enter your Gemini API key."); return; }
-        if (!inputText.trim() || !activeChatContent) return;
+        if (!inputText.trim() || !activeChatContent || isContentLoading) return;
 
         setIsLoading(true);
         setError(null);
@@ -414,8 +414,17 @@ export default function App() {
         };
 
         const updatedConversation = [...(activeChatContent.conversation || []), currentUserTurn];
-        const updatedChatContent: ChatContent = { ...activeChatContent, conversation: updatedConversation };
+        
+        let finalChatName = activeChatContent.name;
+        if (activeChatContent.conversation.length === 0 && finalChatName.startsWith("New Chat")) {
+             finalChatName = inputText.substring(0, 40) || `Chat from ${timestamp}`;
+        }
+        
+        const updatedChatContent: ChatContent = { ...activeChatContent, name: finalChatName, conversation: updatedConversation };
         setActiveChatContent(updatedChatContent);
+        if (finalChatName !== activeChatContent.name) {
+            setChats(prev => prev.map(c => c.id === activeChatContent.id ? { ...c, name: finalChatName } : c));
+        }
 
         const formData = new FormData();
         formData.append("apiKey", apiKey);
@@ -441,21 +450,11 @@ export default function App() {
             const aiTurn: ConversationTurn = { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() };
             const finalConversation = [...updatedConversation, aiTurn];
             
-            let finalChatName = updatedChatContent.name;
-            // Если чат был новый и пустой, даем ему имя по первому промпту
-            if (updatedChatContent.conversation.length === 1 && finalChatName.startsWith("New Chat")) {
-                 finalChatName = inputText.substring(0, 40) || `Chat from ${timestamp}`;
-            }
-
-            const chatToSave: ChatContent = { ...updatedChatContent, name: finalChatName, conversation: finalConversation };
+            const chatToSave: ChatContent = { ...updatedChatContent, conversation: finalConversation };
             
             if (user && isInitialized) {
                 await saveChat(chatToSave);
                 setActiveChatContent(chatToSave);
-                // Обновляем имя в списке чатов
-                 if (finalChatName !== updatedChatContent.name) {
-                    setChats(prev => prev.map(c => c.id === chatToSave.id ? { ...c, name: finalChatName } : c));
-                }
             } else {
                  setActiveChatContent(chatToSave);
             }
@@ -526,7 +525,13 @@ export default function App() {
 
                     <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
                         <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                            {(activeChatContent?.conversation || []).length === 0 && !isLoading && (
+                            {isContentLoading && (
+                                <div className="flex items-center justify-center h-full">
+                                    <SpinnerIcon className="w-8 h-8 text-slate-400" />
+                                </div>
+                            )}
+
+                            {!isContentLoading && (activeChatContent?.conversation || []).length === 0 && !isLoading && (
                                 <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
                                     <GemIcon className="w-16 h-16 mb-4" />
                                     <h3 className="text-lg font-medium mb-1">Start your conversation</h3>
@@ -581,8 +586,8 @@ export default function App() {
                                     className={`w-full px-4 py-3 pr-24 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
                                 />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading || !activeChatContent}
-                                        className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading || !activeChatContent) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading || !activeChatContent || isContentLoading}
+                                        className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading || !activeChatContent || isContentLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
                                     </button>
                                 </div>
@@ -618,7 +623,7 @@ export default function App() {
                                                             type="text"
                                                             value={editingChatName}
                                                             onChange={(e) => setEditingChatName(e.target.value)}
-                                                            onBlur={handleRenameChat}
+                                                            onBlur={() => handleRenameChat()}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Escape') handleCancelEditing();
                                                             }}
