@@ -34,7 +34,6 @@ export const useGoogleAuth = () => {
                     setIsLoading(false);
                 };
 
-                // Устанавливаем слушатель и проверяем текущий статус
                 authInstance.isSignedIn.listen(updateSignInStatus);
                 updateSignInStatus(authInstance.isSignedIn.get());
 
@@ -53,7 +52,6 @@ export const useGoogleAuth = () => {
             await gapi.auth2.getAuthInstance().signIn();
         } catch (error) {
             console.error("Sign-in error:", error);
-            // Ошибка будет обработана слушателем isSignedIn, который обновит состояние
         }
     };
 
