@@ -4,11 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { config } from '../config';
 import { UserProfile } from '../types';
 
-// Объявляем gapi как глобальную переменную, чтобы TypeScript не ругался
 declare global {
   interface Window {
-    gapi: any;
     google: any;
+    gapi: any;
   }
 }
 
@@ -16,67 +15,88 @@ export const useGoogleAuth = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-
-    const updateSignInStatus = useCallback((isSignedIn: boolean) => {
-        if (isSignedIn) {
-            const authInstance = window.gapi.auth2.getAuthInstance();
-            const googleUser = authInstance.currentUser.get();
-            const profile = googleUser.getBasicProfile();
-            setUser({
-                id: profile.getId(),
-                name: profile.getName(),
-                email: profile.getEmail(),
-                imageUrl: profile.getImageUrl(),
+    
+    // Функция для получения профиля пользователя после получения токена
+    const fetchUserProfile = useCallback(async () => {
+        try {
+            const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: {
+                    'Authorization': `Bearer ${window.gapi.client.getToken().access_token}`
+                }
             });
-        } else {
-            setUser(null);
+            if (!response.ok) throw new Error('Failed to fetch user profile');
+            const profile = await response.json();
+            setUser({
+                id: profile.sub,
+                name: profile.name,
+                email: profile.email,
+                imageUrl: profile.picture,
+            });
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            setUser(null); // Очищаем пользователя в случае ошибки
+        } finally {
+            setIsInitialized(true);
+            setIsLoading(false);
         }
-        setIsInitialized(true);
-        setIsLoading(false);
     }, []);
 
     useEffect(() => {
-        const initClient = () => {
-            window.gapi.client.init({
-                clientId: config.google.clientId,
-                scope: config.google.scope,
-                discoveryDocs: config.google.discoveryDocs,
-            }).then(() => {
-                const authInstance = window.gapi.auth2.getAuthInstance();
-                // Устанавливаем слушатель и сразу проверяем текущий статус
-                authInstance.isSignedIn.listen(updateSignInStatus);
-                updateSignInStatus(authInstance.isSignedIn.get());
-            }).catch((error: any) => {
-                console.error("Error initializing Google API client:", error);
-                setIsInitialized(false);
-                setIsLoading(false);
+        const loadGapiClient = async () => {
+            await new Promise((resolve, reject) => {
+                if (window.gapi) {
+                    window.gapi.load('client', { callback: resolve, onerror: reject });
+                } else {
+                    reject(new Error("GAPI script not loaded"));
+                }
             });
+            await window.gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
         };
 
-        if (window.gapi) {
-          window.gapi.load('client:auth2', initClient);
-        } else {
-          // Если gapi еще не загрузился, это указывает на проблему с загрузкой скрипта в index.html
-          console.error("gapi script not loaded yet!");
-          setIsLoading(false);
-        }
-    }, [updateSignInStatus]);
+        loadGapiClient().catch(e => console.error("Error loading GAPI client for Drive:", e));
 
-    const signIn = async () => {
-        try {
-            await window.gapi.auth2.getAuthInstance().signIn();
-        } catch (error) {
-            console.error("Sign-in error:", error);
-        }
-    };
+    }, []);
 
-    const signOut = async () => {
-        try {
-            await window.gapi.auth2.getAuthInstance().signOut();
-        } catch (error) {
-            console.error("Sign-out error:", error);
+
+    const signIn = useCallback(() => {
+        setIsLoading(true);
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: config.google.clientId,
+            scope: config.google.scope,
+            callback: async (tokenResponse: any) => {
+                if (tokenResponse.error) {
+                    console.error("Token error:", tokenResponse.error);
+                    setIsLoading(false);
+                    return;
+                }
+                // Устанавливаем токен для всех последующих запросов GAPI
+                window.gapi.client.setToken(tokenResponse);
+                await fetchUserProfile();
+            },
+        });
+        tokenClient.requestAccessToken();
+    }, [fetchUserProfile]);
+
+    const signOut = useCallback(() => {
+        const token = window.gapi.client.getToken();
+        if (token) {
+            window.google.accounts.oauth2.revoke(token.access_token, () => {
+                window.gapi.client.setToken(null);
+                setUser(null);
+                setIsInitialized(true);
+            });
         }
-    };
+        setUser(null);
+    }, []);
+
+    // Проверяем, есть ли активный токен при загрузке
+     useEffect(() => {
+        // Проверка токена не делается автоматически, как в gapi.auth2
+        // Приложение либо запрашивает вход каждый раз, либо сохраняет токен
+        // Для простоты, мы считаем пользователя вышедшим из системы при обновлении страницы
+        setIsLoading(false);
+        setIsInitialized(true);
+    }, []);
 
     return { user, signIn, signOut, isInitialized, isLoading };
 };
