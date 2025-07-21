@@ -14,7 +14,7 @@ import { ResponsePart, ConversationTurn, Chat, ChatContent, UserProfile } from "
 import { listChats, getChatContent, saveChat, createNewChatFile } from "./services/googleDrive";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
-// --- ИКОНКИ (без изменений) ---
+// --- ИКОНКИ ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const PaperclipIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.44 11.05L12.39 19.64C11.11 20.87 9.07 21.01 7.64 19.93C6.21 18.85 6.04 16.86 7.27 15.58L15.86 6.53C16.65 5.74 17.91 5.74 18.7 6.53C19.49 7.32 19.49 8.58 18.7 9.37L10.11 18.42C9.67 18.86 9.01 19.03 8.38 18.85C7.75 18.67 7.23 18.16 7.05 17.53C6.87 16.9 7.04 16.24 7.48 15.8L16.03 6.75C17.26 5.47 19.3 5.33 20.38 6.41C21.46 7.49 21.6 9.53 20.32 10.81L11.27 19.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const FolderIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 10H12L10 8H2C1.45 8 1 8.45 1 9V19C1 19.55 1.45 20 2 20H22C22.55 20 23 19.55 23 19V11C23 10.45 22.55 10 22 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -27,7 +27,7 @@ const FileIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor
 const FolderIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const GithubIconForAttachment = () => (<svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 
-// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ (без изменений) ---
+// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void }) => {
     const isRepo = file.name.startsWith('gh_repo:::');
     const isFolder = file.name.endsWith('.zip');
@@ -205,70 +205,53 @@ export default function App() {
         }
     }, [activeChat?.conversation, isLoading]);
 
-    // --- НОВАЯ, ИСПРАВЛЕННАЯ ЛОГИКА ЗАГРУЗКИ ДАННЫХ ---
-    
-    // Функция для получения списка чатов
-    const refreshChats = useCallback(async () => {
-        if (!user || !isInitialized) return;
-        try {
-            const chatList = await listChats();
-            setChats(chatList);
-        } catch (err) {
-            console.error("Failed to list chats:", err);
-            setError("Could not load chats from Google Drive.");
-        }
-    }, [user, isInitialized]);
-
-    // Функция для выбора чата или создания нового
     const handleSelectChat = useCallback(async (chatId: string) => {
-        // Не делать ничего, если уже выбран этот чат
         if (activeChat?.id === chatId) return;
-        
+        if (chatId === 'new-chat' && activeChat && !activeChat.id) return;
+
         setError(null);
         setIsLoading(true);
-        
         try {
-            let chatContent: ChatContent;
-            if (chatId === 'new') {
-                chatContent = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
-                // Визуально добавляем новый чат в начало списка, не сохраняя его
-                setChats(prev => [{ id: 'new-chat', name: chatContent.name, createdTime: new Date().toISOString() }, ...prev]);
-            } else {
-                chatContent = await getChatContent(chatId);
-            }
+            const chatContent = await getChatContent(chatId);
             setActiveChat(chatContent);
         } catch (err) {
-            console.error("Failed to load or create chat:", err);
+            console.error("Failed to load chat content:", err);
             setError("Could not load the selected chat.");
         } finally {
             setIsLoading(false);
         }
     }, [activeChat]);
 
-    // Эффект №1: Обновляем список чатов при изменении статуса авторизации
+    const refreshChats = useCallback(async (selectFirst = false) => {
+        if (!user || !isInitialized) return;
+        try {
+            const chatList = await listChats();
+            setChats(chatList);
+            if (selectFirst && chatList.length > 0) {
+                await handleSelectChat(chatList[0].id);
+            }
+        } catch (err) {
+            console.error("Failed to list chats:", err);
+            setError("Could not load chats from Google Drive.");
+        }
+    }, [user, isInitialized, handleSelectChat]);
+
     useEffect(() => {
         if (user && isInitialized) {
-            refreshChats();
-        } else if (!user && isInitialized) {
-            // Если пользователь вышел, очищаем все
+            refreshChats(true); // При первом входе загружаем чаты и выбираем первый
+        }
+        if (!user && isInitialized) {
             setChats([]);
             setActiveChat(null);
         }
-    }, [user, isInitialized, refreshChats]);
+    }, [user, isInitialized]);
 
-    // Эффект №2: Выбираем первый чат из списка, если он есть, а активного чата нет
-    useEffect(() => {
-        if (!activeChat && chats.length > 0) {
-            handleSelectChat(chats[0].id);
-        }
-    }, [chats, activeChat, handleSelectChat]);
-    
-    // --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ---
-
-    const handleCreateNewChat = () => {
-        handleSelectChat('new');
+    const handleCreateNewChat = async () => {
+        const newChat = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
+        setActiveChat(newChat);
+        setChats(prev => [{ id: 'new-chat', name: newChat.name, createdTime: new Date().toISOString() }, ...prev.filter(c => c.id !== 'new-chat')]);
     };
-
+    
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const filesToUpload = e.target.files ? Array.from(e.target.files) : [];
         if (filesToUpload.length > 0) { setAttachedFiles(prevFiles => [...prevFiles, ...filesToUpload]); }
@@ -338,10 +321,8 @@ export default function App() {
         const currentUserTurn: ConversationTurn = {
             type: 'user', prompt: inputText, attachments: [], timestamp
         };
-
-        // Если активного чата нет, создаем его на лету
+        
         const chatToUpdate = activeChat || await createNewChatFile(inputText.substring(0, 30) || `Chat from ${timestamp}`);
-
         const updatedConversation = [...(chatToUpdate.conversation || []), currentUserTurn];
         const updatedChatContent: ChatContent = { ...chatToUpdate, conversation: updatedConversation };
         setActiveChat(updatedChatContent);
@@ -369,18 +350,15 @@ export default function App() {
             const data: ResponsePart[] = await response.json();
             const aiTurn: ConversationTurn = { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() };
             const finalConversation = [...updatedConversation, aiTurn];
-            const chatToSave: ChatContent = { ...updatedChatContent, conversation: finalConversation };
+            const chatToSave: ChatContent = { ...updatedChatContent, name: updatedChatContent.name, conversation: finalConversation };
             
             if (user && isInitialized) {
-                // Сохраняем и обновляем ID, если это был новый чат
                 const savedChatId = await saveChat(chatToSave);
                 setActiveChat({ ...chatToSave, id: savedChatId });
-                // Обновляем список чатов, чтобы убрать временный "New Chat" и показать сохраненный
-                await refreshChats(); 
+                await refreshChats();
             } else {
                 setActiveChat(chatToSave);
             }
-
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
             const errorTurn: ConversationTurn = {
@@ -391,8 +369,7 @@ export default function App() {
             setIsLoading(false);
         }
     };
-    
-    // JSX остается без изменений
+
     return (
         <>
             <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
@@ -422,7 +399,6 @@ export default function App() {
                 </header>
 
                 <main className="max-w-7xl mx-auto grid flex-1 grid-cols-1 lg:grid-cols-4 gap-6 p-6 min-h-0">
-                    {/* API Configuration (Слева) */}
                     <aside className="lg:col-span-1 flex flex-col gap-4">
                         <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1`}>
                             <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
@@ -447,7 +423,6 @@ export default function App() {
                         </div>
                     </aside>
 
-                    {/* Chat Interface (Центр) */}
                     <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
                         <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
                             {(activeChat?.conversation || []).length === 0 && !isLoading && (
@@ -533,8 +508,8 @@ export default function App() {
                                                 key={chat.id}
                                                 onClick={() => handleSelectChat(chat.id)}
                                                 className={`p-3 rounded-lg cursor-pointer transition-colors ${activeChat?.id === chat.id || (chat.id === 'new-chat' && activeChat && !activeChat.id)
-                                                    ? "bg-blue-600/20"
-                                                    : "hover:bg-gray-700/30"
+                                                        ? "bg-blue-600/20"
+                                                        : "hover:bg-gray-700/30"
                                                     }`}
                                             >
                                                 <p className="font-medium truncate">{chat.name}</p>
