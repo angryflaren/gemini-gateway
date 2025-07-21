@@ -5,8 +5,7 @@ export const config = {
   refinerModel: "models/gemini-2.5-flash-lite-preview-06-17", // Модель для усиления и детализации промптов
 
   google: {
-    clientId: "205595350382-7a3mptfofbe1d0puirov0u1q5f5ma4oh.apps.googleusercontent.com", 
-    apiKey: "ВАШ_GOOGLE_API_KEY", // Если требуется для других сервисов Google
+    clientId: "205595350382-7a3mptfofbe1d0puirov0u1q5f5ma4oh.apps.googleusercontent.com",
     scope: "https://www.googleapis.com/auth/drive.file",
     discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
   },
