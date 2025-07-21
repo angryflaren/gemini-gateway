@@ -96,7 +96,19 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 </div>
             );
         case 'math': return <BlockMath math={part.content} />;
-        case 'list': return (<ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">{part.items.map((item, i) => (<li key={i}><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{item}</ReactMarkdown></li>))}</ul>);
+        case 'list':
+          // ИСПРАВЛЕНИЕ: Добавлена проверка на существование и тип массива
+          return (
+            <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">
+              {Array.isArray(part.items) && part.items.map((item, i) => (
+                <li key={i}>
+                  <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>
+                    {item}
+                  </ReactMarkdown>
+                </li>
+              ))}
+            </ul>
+          );
         default:
             const unknownPart = part as any;
             return (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong className="font-bold">Unknown Block Type!</strong><span className="block sm:inline"> An unknown block type '{unknownPart?.type}' was received.</span><pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre></div>);
