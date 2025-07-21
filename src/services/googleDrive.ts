@@ -6,12 +6,7 @@ const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
 
 declare const gapi: any;
 
-/**
- * Находит или создает специальную папку приложения в Google Drive.
- * @returns {Promise<string>} ID папки приложения.
- */
 const getAppFolderId = async (): Promise<string> => {
-    // Эта функция остается без изменений
     const response = await gapi.client.drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
         fields: 'files(id, name)',
@@ -32,12 +27,7 @@ const getAppFolderId = async (): Promise<string> => {
     }
 };
 
-/**
- * Получает список всех файлов чатов из папки приложения.
- * @returns {Promise<Chat[]>} Массив объектов чатов.
- */
 export const listChats = async (): Promise<Chat[]> => {
-    // Эта функция остается без изменений
     const folderId = await getAppFolderId();
     const response = await gapi.client.drive.files.list({
         q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
@@ -51,68 +41,73 @@ export const listChats = async (): Promise<Chat[]> => {
     })) || [];
 };
 
-/**
- * Загружает и парсит содержимое файла чата по его ID.
- * @param {string} fileId ID файла в Google Drive.
- * @returns {Promise<ChatContent>} Полное содержимое чата.
- */
 export const getChatContent = async (fileId: string): Promise<ChatContent> => {
-    // Эта функция остается без изменений
-    const response = await gapi.client.drive.files.get({
-        fileId: fileId,
-        alt: 'media',
-    });
-    // ИСПРАВЛЕНИЕ: Добавляем ID и имя в возвращаемый объект, так как они там нужны
-    const content = JSON.parse(response.body);
-    const fileDetails = await gapi.client.drive.files.get({
-        fileId: fileId,
-        fields: 'name'
-    });
-    return { 
-        ...content, 
-        id: fileId, 
-        name: fileDetails.result.name.replace('.json', '') 
-    };
+    try {
+        const response = await gapi.client.drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+        });
+
+        // **ИСПРАВЛЕНИЕ**: Если тело ответа пустое (новый файл), возвращаем пустую структуру
+        const content = response.body ? JSON.parse(response.body) : { conversation: [] };
+        
+        const fileDetails = await gapi.client.drive.files.get({
+            fileId: fileId,
+            fields: 'name'
+        });
+
+        return { 
+            id: fileId, 
+            name: fileDetails.result.name.replace('.json', ''),
+            conversation: content.conversation || [] 
+        };
+    } catch (e: any) {
+        // Если ошибка парсинга (например, 204 No Content), это тоже новый файл
+        if (e.result && e.result.error.code !== 404) {
+             const fileDetails = await gapi.client.drive.files.get({
+                fileId: fileId,
+                fields: 'name'
+            });
+            return {
+                id: fileId,
+                name: fileDetails.result.name.replace('.json', ''),
+                conversation: []
+            };
+        }
+        console.error("Failed to get chat content", e);
+        throw e; // Пробрасываем ошибку дальше, если это не ожидаемая ошибка
+    }
 };
 
-/**
- * Сохраняет (обновляет существующий) чат в Google Drive.
- * @param {ChatContent} chatData Объект с данными чата.
- * @returns {Promise<string>} ID сохраненного файла.
- */
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
     if (!chatData.id) {
         throw new Error("Cannot save a chat without an ID. Use createNewChatFile first.");
     }
     
-    // Убедимся, что у файла есть имя
     const fileName = `${chatData.name || 'New Chat'}.json`;
     
-    // Убираем id и name из тела файла, чтобы не дублировать данные
+    // В теле файла храним только диалог
     const { id, name, ...conversationData } = chatData;
     const fileContent = JSON.stringify(conversationData, null, 2);
     
     const blob = new Blob([fileContent], { type: 'application/json' });
 
-    // Обновление контента
+    // Обновляем и контент, и имя
+    const form = new FormData();
+    const metadata = { name: fileName };
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+
     await gapi.client.request({
         path: `/upload/drive/v3/files/${chatData.id}`,
         method: 'PATCH',
-        params: { uploadType: 'media' },
-        body: blob,
+        params: { uploadType: 'multipart' },
+        body: form,
     });
-    
-    // Обновление имени
-    await renameChatFile(chatData.id, fileName);
 
     return chatData.id;
 };
 
-/**
- * **НОВАЯ ФУНКЦИЯ**: Переименовывает файл чата.
- * @param {string} fileId ID файла.
- * @param {string} newName Новое имя (без .json).
- */
 export const renameChatFile = async (fileId: string, newName: string): Promise<void> => {
     const fileName = newName.endsWith('.json') ? newName : `${newName}.json`;
     await gapi.client.drive.files.update({
@@ -121,11 +116,6 @@ export const renameChatFile = async (fileId: string, newName: string): Promise<v
     });
 }
 
-/**
- * **ИЗМЕНЕННАЯ ЛОГИКА**: Создает НОВЫЙ ПУСТОЙ файл чата в Google Drive.
- * @param {string} title Название нового чата.
- * @returns {Promise<Chat>} Объект нового чата с реальным ID.
- */
 export const createNewChatFile = async (title: string): Promise<Chat> => {
     const folderId = await getAppFolderId();
     const fileName = `${title}.json`;
