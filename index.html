@@ -5,10 +5,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gemini Gateway</title>
-    <!-- ИЗМЕНЕНИЕ: Заменен старый скрипт на новый Google Identity Services -->
+    <!-- Этот скрипт нужен для аутентификации (получения токена) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- ВАЖНО: Старый скрипт api.js больше не нужен, но gapi клиент все еще нужен для Drive API -->
-    <script src="https://apis.google.com/js/api.js" async defer></script>
+    
+    <!-- УДАЛЕНО: Скрипт GAPI теперь загружается динамически в useGoogleAuth.ts -->
+    <!-- <script src="https://apis.google.com/js/api.js" async defer></script> -->
   </head>
   <body>
     <div id="root"></div>
