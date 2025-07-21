@@ -361,7 +361,7 @@ export default function App() {
             const aiTurn: ConversationTurn = { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() };
             const finalConversation = [...updatedConversation, aiTurn];
             const chatToSave: ChatContent = { ...updatedChatContent, conversation: finalConversation };
-
+            
             if (user && isInitialized) {
                 const savedChatId = await saveChat(chatToSave);
                 setActiveChat({ ...chatToSave, id: savedChatId });
@@ -410,7 +410,6 @@ export default function App() {
                 </header>
 
                 <main className="max-w-7xl mx-auto grid flex-1 grid-cols-1 lg:grid-cols-4 gap-6 p-6 min-h-0">
-
                     {/* API Configuration (Слева) */}
                     <aside className="lg:col-span-1 flex flex-col gap-4">
                         <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1`}>
@@ -438,7 +437,6 @@ export default function App() {
 
                     {/* Chat Interface (Центр) */}
                     <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
-
                         <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
                             {(activeChat?.conversation || []).length === 0 && !isLoading && (
                                 <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
@@ -475,7 +473,6 @@ export default function App() {
                             {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
                         </div>
 
-                        {/* Поле ввода */}
                         <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
                             {attachedFiles.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-2">
@@ -524,8 +521,8 @@ export default function App() {
                                                 key={chat.id}
                                                 onClick={() => handleSelectChat(chat.id)}
                                                 className={`p-3 rounded-lg cursor-pointer transition-colors ${activeChat?.id === chat.id
-                                                        ? "bg-blue-600/20"
-                                                        : "hover:bg-gray-700/30"
+                                                    ? "bg-blue-600/20"
+                                                    : "hover:bg-gray-700/30"
                                                     }`}
                                             >
                                                 <p className="font-medium truncate">{chat.name}</p>
