@@ -144,7 +144,7 @@ const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: bool
     );
 };
 
-const AuthDisplay = ({ user, onLogin, onLogout }: { user: UserProfile | null, onLogin: () => void, onLogout: () => void }) => {
+const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: UserProfile | null, onLogin: () => void, onLogout: () => void, isLoading: boolean, isReady: boolean }) => {
     if (user) {
         return (
             <div className="relative group">
@@ -162,9 +162,15 @@ const AuthDisplay = ({ user, onLogin, onLogout }: { user: UserProfile | null, on
         );
     }
 
+    // ИСПРАВЛЕНИЕ: Кнопка входа теперь заблокирована во время загрузки GAPI
     return (
-        <button onClick={onLogin} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-2" aria-label="Sign in with Google">
-            <GoogleIcon />
+        <button 
+            onClick={onLogin} 
+            disabled={isLoading || !isReady}
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait" 
+            aria-label="Sign in with Google"
+        >
+            {isLoading ? <SpinnerIcon /> : <GoogleIcon />}
         </button>
     );
 }
@@ -455,7 +461,13 @@ export default function App() {
                         <button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
                             {config.helpButtonText}
                         </button>
-                        <AuthDisplay user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                        <AuthDisplay 
+                            user={user} 
+                            onLogin={handleLogin} 
+                            onLogout={handleLogout} 
+                            isLoading={isGapiLoading}
+                            isReady={isGapiReady}
+                        />
                     </div>
                 </header>
 
