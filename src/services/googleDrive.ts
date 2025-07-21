@@ -3,8 +3,6 @@ import { Chat, ChatContent } from '../types';
 
 const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
 
-// --- Работа с файлами чатов ---
-
 const getAppFolderId = async (): Promise<string> => {
     const response = await gapi.client.drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
@@ -45,8 +43,8 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
         fileId: fileId,
         alt: 'media',
     });
-    // ИСПРАВЛЕНИЕ: Прямое использование response.body может быть неверным для сложных объектов
-    return response.result as ChatContent;
+    // response.body содержит JSON-строку, которую нужно распарсить
+    return JSON.parse(response.body) as ChatContent;
 };
 
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
@@ -85,10 +83,9 @@ export const saveChat = async (chatData: ChatContent): Promise<string> => {
 
 export const createNewChatFile = async (title: string): Promise<ChatContent> => {
     const newChat: ChatContent = {
-        id: '', // id будет присвоен после первого сохранения
+        id: '',
         name: title,
         conversation: [],
     };
-    // Файл будет фактически создан на Google Drive только при первом сохранении
     return newChat;
 }
