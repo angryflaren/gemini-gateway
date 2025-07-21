@@ -195,7 +195,6 @@ export default function App() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
 
-    // --- Эффекты ---
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
     }, [isDarkMode]);
@@ -249,7 +248,6 @@ export default function App() {
         }
     }, [user, isInitialized, refreshChats]);
 
-    // --- Обработчики ---
     const handleCreateNewChat = async () => {
         const newChat = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
         setActiveChat(newChat);
@@ -311,7 +309,6 @@ export default function App() {
         }
     };
 
-    // --- Главная функция отправки ---
     const handleSubmit = async () => {
         if (!apiKey) { alert("Please enter your Gemini API key."); return; }
         if (!inputText.trim()) return;
