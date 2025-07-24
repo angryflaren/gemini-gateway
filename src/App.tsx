@@ -270,24 +270,34 @@ export default function App() {
         try {
             const chatList = await listChats();
             setChats(chatList);
-
-            if (chatList.length === 0) {
-                // Если у пользователя нет чатов в Drive, переключаем его на новый локальный чат
-                setActiveChatId(LOCAL_CHAT_ID);
+            const newActiveChatId = (() => {
+                if (chatList.length === 0) {
+                    return LOCAL_CHAT_ID;
+                }
+                if (selectChatId === 'first') {
+                    return chatList[0].id;
+                }
+                if (selectChatId && chatList.some(c => c.id === selectChatId)) {
+                    return selectChatId;
+                }
+                if (!activeChatId || activeChatId === LOCAL_CHAT_ID || !chatList.some(c => c.id === activeChatId)) {
+                     return chatList[0].id;
+                }
+                // В противном случае сохраняем текущий активный чат
+                return activeChatId;
+            })();
+            if (newActiveChatId !== activeChatId) {
+                setActiveChatId(newActiveChatId);
+            }
+            
+            if (newActiveChatId === LOCAL_CHAT_ID && activeChatContent?.id !== LOCAL_CHAT_ID) {
                 setActiveChatContent(createLocalChat());
-            } else if (selectChatId === 'first') {
-                setActiveChatId(chatList[0].id);
-            } else if (typeof selectChatId === 'string') {
-                setActiveChatId(selectChatId);
-            } else if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
-                // Если текущий чат локальный, переключаем на первый из Drive
-                setActiveChatId(chatList[0].id);
             }
         } catch (err) {
             console.error("Failed to list chats:", err);
             setError("Could not load chats from Google Drive.");
         }
-    }, [user, isInitialized, activeChatId]);
+    }, [user, isInitialized, activeChatId, activeChatContent]);
     
     // --- ИЗМЕНЕНИЕ: Упрощенная логика управления состоянием при входе/выходе ---
     useEffect(() => {
@@ -303,18 +313,17 @@ export default function App() {
 
     const handleCreateNewChat = async () => {
         if (isAuthLoading || !user) {
-            // Если пользователь не вошел, просто создаем новый локальный чат
             setActiveChatId(LOCAL_CHAT_ID);
             setActiveChatContent(createLocalChat());
             return;
         };
-
         setIsContentLoading(true);
         setError(null);
         try {
             const newChat = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
-            setChats(prev => [newChat, ...prev]);
-            setActiveChatId(newChat.id); // Сразу переключаемся на новый чат
+            // После создания файла, мы вызываем refreshChats, чтобы он
+            // корректно обновил список и выбрал новый чат.
+            await refreshChats(newChat.id);
         } catch (err) {
             console.error("Failed to create new chat:", err);
             setError("Could not create a new chat in Google Drive.");
@@ -428,80 +437,68 @@ export default function App() {
     // --- ИЗМЕНЕНИЕ: Полностью переработанная логика handleSubmit ---
     const handleSubmit = async () => {
         if (!apiKey) { alert("Please enter your Gemini API key."); return; }
-        // activeChatContent теперь всегда существует, поэтому проверка !activeChatContent убрана.
         if (!inputText.trim() || !activeChatContent) return;
-
         setIsLoading(true);
         setError(null);
-
         const timestamp = new Date().toLocaleTimeString();
         const currentUserTurn: ConversationTurn = {
             type: 'user', prompt: inputText, attachments: [], timestamp
         };
-
         let updatedChatContent = { ...activeChatContent };
         
-        // Если это первое сообщение в локальном чате, используем его как название
         const isFirstMessageInLocalChat = updatedChatContent.id === LOCAL_CHAT_ID && updatedChatContent.conversation.length === 0;
         if (isFirstMessageInLocalChat) {
-             updatedChatContent.name = inputText.substring(0, 40) || `Chat from ${timestamp}`;
+             updatedChatContent.name = inputText.substring(0, 50) || `Chat from ${timestamp}`;
         }
         
         updatedChatContent.conversation = [...updatedChatContent.conversation, currentUserTurn];
         
-        // Немедленно обновляем UI для отзывчивости
         setActiveChatContent(updatedChatContent);
-
         const formData = new FormData();
         formData.append("apiKey", apiKey);
         formData.append("prompt", inputText);
         formData.append("model", model);
         formData.append("refinerModel", config.refinerModel);
         attachedFiles.forEach(file => { formData.append("files", file); });
-
         setInputText("");
         setAttachedFiles([]);
-
         try {
             const response = await fetch(`${config.backendUrl}/api/generate`, {
                 method: "POST", headers: { 'ngrok-skip-browser-warning': 'true' }, body: formData
             });
-
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(errorText || "An unknown server error occurred");
             }
-
             const data: ResponsePart[] = await response.json();
             const aiTurn: ConversationTurn = { type: 'ai', parts: data, timestamp: new Date().toLocaleTimeString() };
             
-            let finalConversation = [...updatedChatContent.conversation, aiTurn];
+            const finalConversation = [...updatedChatContent.conversation, aiTurn];
             let chatToSave: ChatContent = { ...updatedChatContent, conversation: finalConversation };
             
-            // Логика сохранения: только для аутентифицированных пользователей
             if (user && isInitialized) {
-                // Если чат был локальным, создаем его в Drive ("продвигаем")
+                // "Продвижение" локального чата в облачный
                 if (chatToSave.id === LOCAL_CHAT_ID) {
+                    // 1. Создаем файл с правильным именем
                     const newChatFile = await createNewChatFile(chatToSave.name);
-                    chatToSave.id = newChatFile.id; // Присваиваем новый ID от Drive
+                    // 2. Обновляем ID нашего объекта в состоянии
+                    chatToSave.id = newChatFile.id;
+                    // 3. Сохраняем контент в этот новый файл (используя исправленную saveChat)
                     await saveChat(chatToSave);
-                    // Обновляем список чатов и переключаемся на новый ID
+                    // 4. Обновляем список чатов и делаем новый чат активным
                     await refreshChats(newChatFile.id);
                 } else {
-                    // Если чат уже был в Drive, просто сохраняем
+                    // Просто сохраняем существующий чат
                     await saveChat(chatToSave);
                 }
             }
             
-            // Обновляем активный чат с ответом AI
             setActiveChatContent(chatToSave);
-
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
             const errorTurn: ConversationTurn = {
                 type: 'ai', parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }], timestamp: new Date().toLocaleTimeString()
             };
-            // Восстанавливаем предыдущий шаг и добавляем сообщение об ошибке
             setActiveChatContent(prev => ({ ...prev!, conversation: [...(prev?.conversation || []), errorTurn] }));
         } finally {
             setIsLoading(false);
