@@ -18,7 +18,7 @@ const getAppFolderId = async (): Promise<string> => {
     if (response.result.files && response.result.files.length > 0) {
         return response.result.files[0].id!;
     } else {
-        console.log(`Folder '${APP_DATA_FOLDER}' not found, creating it.`);
+        console.log(`Folder '${APP_DATA_FOLDER}' not found, creating it in root.`);
         const fileMetadata = {
             name: APP_DATA_FOLDER,
             mimeType: 'application/vnd.google-apps.folder',
@@ -50,7 +50,6 @@ export const listChats = async (): Promise<Chat[]> => {
 };
 
 export const getChatContent = async (fileId: string): Promise<ChatContent> => {
-    // Эта функция остается без критических изменений
     try {
         const response = await gapi.client.drive.files.get({
             fileId: fileId,
@@ -71,7 +70,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
         };
     } catch (e: any) {
         console.error("Failed to get chat content for fileId:", fileId, e);
-        // Возвращаем пустой чат, если не удалось загрузить, чтобы не ломать UI
         const fileDetails = await gapi.client.drive.files.get({
             fileId: fileId,
             fields: 'name'
@@ -86,7 +84,7 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
 
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
     if (!chatData.id) {
-        throw new Error("Cannot save a chat without an ID. Use createNewChatFile first.");
+        throw new Error("Cannot save a chat without an ID.");
     }
     
     const fileName = `${chatData.name || 'New Chat'}.json`;
@@ -95,7 +93,6 @@ export const saveChat = async (chatData: ChatContent): Promise<string> => {
     
     const metadata = { name: fileName, mimeType: 'application/json' };
     
-    // Используем multipart upload для обновления и метаданных, и контента
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     form.append('file', new Blob([fileContent], { type: 'application/json' }));
@@ -125,24 +122,26 @@ export const createNewChatFile = async (title: string): Promise<Chat> => {
     }
     
     const fileName = `${title}.json`;
+    const initialContent = { conversation: [] };
+    const blob = new Blob([JSON.stringify(initialContent, null, 2)], { type: 'application/json' });
 
-    const initialContent = {
-        conversation: [],
-    };
-    
-    const fileMetadata = {
+    // --- ИСПРАВЛЕНИЕ: Использование FormData для создания файла ---
+    // Этот метод явно указывает API, куда поместить файл, что решает проблему.
+    const metadata = {
         name: fileName,
         mimeType: 'application/json',
-        parents: [folderId], // <--- Это самая важная строка
+        parents: [folderId], // Самая важная часть
     };
 
-    const response = await gapi.client.drive.files.create({
-        resource: fileMetadata,
-        media: {
-            mimeType: 'application/json',
-            body: JSON.stringify(initialContent, null, 2)
-        },
-        fields: 'id, name, createdTime'
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+
+    const response = await gapi.client.request({
+        path: '/upload/drive/v3/files',
+        method: 'POST',
+        params: { uploadType: 'multipart', fields: 'id, name, createdTime' },
+        body: form,
     });
     
     return {
