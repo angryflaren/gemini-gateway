@@ -1,33 +1,47 @@
 // src/services/googleDrive.ts
-
 import { Chat, ChatContent } from '../types';
 
 const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
 
 declare const gapi: any;
 
-const getAppFolderId = async (): Promise<string> => {
-    const response = await gapi.client.drive.files.list({
-        q: `'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
-        spaces: 'drive',
-        fields: 'files(id)',
-    });
-
-    if (response.result.files && response.result.files.length > 0) {
-        return response.result.files[0].id!;
-    } else {
-        const fileMetadata = {
-            name: APP_DATA_FOLDER,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: ['root']
-        };
-        const newFolderResponse = await gapi.client.drive.files.create({
-            resource: fileMetadata,
-            fields: 'id',
-        });
-        return newFolderResponse.result.id!;
-    }
-};
+// Функция для получения ID папки приложения. Кэшируем результат для производительности.
+const getAppFolderId = (() => {
+    let folderIdPromise: Promise<string> | null = null;
+    return (): Promise<string> => {
+        if (folderIdPromise) {
+            return folderIdPromise;
+        }
+        folderIdPromise = (async () => {
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
+                    spaces: 'drive',
+                    fields: 'files(id)',
+                });
+                if (response.result.files && response.result.files.length > 0) {
+                    return response.result.files[0].id!;
+                } else {
+                    const fileMetadata = {
+                        name: APP_DATA_FOLDER,
+                        mimeType: 'application/vnd.google-apps.folder',
+                        parents: ['root']
+                    };
+                    const newFolderResponse = await gapi.client.drive.files.create({
+                        resource: fileMetadata,
+                        fields: 'id',
+                    });
+                    return newFolderResponse.result.id!;
+                }
+            } catch (error) {
+                // Если что-то пошло не так, сбрасываем промис, чтобы попробовать снова
+                folderIdPromise = null;
+                throw error;
+            }
+        })();
+        return folderIdPromise;
+    };
+})();
 
 export const listChats = async (): Promise<Chat[]> => {
     const folderId = await getAppFolderId();
@@ -44,14 +58,20 @@ export const listChats = async (): Promise<Chat[]> => {
 };
 
 export const getChatContent = async (fileId: string): Promise<ChatContent> => {
-    const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
-    const fileDetails = await gapi.client.drive.files.get({ fileId, fields: 'name' });
-    const content = response.body ? JSON.parse(response.body) : { conversation: [] };
-    return { 
-        id: fileId, 
-        name: fileDetails.result.name.replace('.json', ''),
-        conversation: content.conversation || [] 
-    };
+    try {
+        const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
+        const fileDetails = await gapi.client.drive.files.get({ fileId, fields: 'name' });
+        const content = response.body ? JSON.parse(response.body) : { conversation: [] };
+        return { 
+            id: fileId, 
+            name: fileDetails.result.name.replace('.json', ''),
+            conversation: content.conversation || [] 
+        };
+    } catch (error) {
+        console.error(`Failed to get content for file ${fileId}`, error);
+        // В случае ошибки возвращаем пустой чат, чтобы не ломать приложение
+        return { id: fileId, name: 'Error Loading Chat', conversation: [] };
+    }
 };
 
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
