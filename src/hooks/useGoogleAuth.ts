@@ -40,6 +40,23 @@ export const useGoogleAuth = () => {
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+    const signOut = useCallback(() => {
+        const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (storedToken) {
+            try {
+                const tokenData = JSON.parse(storedToken);
+                if (tokenData.access_token) {
+                    window.google?.accounts.oauth2.revoke(tokenData.access_token, () => {});
+                }
+            } catch (e) {
+                console.error("Failed to parse token for sign out:", e)
+            }
+        }
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        if (window.gapi?.client) window.gapi.client.setToken(null);
+        setUser(null);
+    }, []);
+
     const fetchUserProfile = useCallback(async (token: string) => {
         try {
             const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
@@ -58,21 +75,7 @@ export const useGoogleAuth = () => {
             // Если профиль не удалось получить, сбрасываем сессию
             signOut();
         }
-    }, []);
-
-    const signOut = useCallback(() => {
-        const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
-        if (storedToken) {
-            const tokenData = JSON.parse(storedToken);
-            if (tokenData.access_token) {
-                window.google?.accounts.oauth2.revoke(tokenData.access_token, () => {});
-            }
-        }
-        sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        if (window.gapi?.client) window.gapi.client.setToken(null);
-        setUser(null);
-    }, []);
-
+    }, [signOut]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -91,9 +94,11 @@ export const useGoogleAuth = () => {
                     client_id: config.google.clientId,
                     scope: config.google.scope,
                     callback: async (tokenResponse: any) => {
+                        setIsLoading(true);
                         if (tokenResponse.error) {
-                             console.error("OAuth Error:", tokenResponse.error);
+                             console.error("OAuth Error:", tokenResponse.error, tokenResponse.error_description);
                              signOut(); // Очищаем всё в случае ошибки
+                             setIsLoading(false);
                              return;
                         }
                         sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(tokenResponse));
@@ -106,14 +111,19 @@ export const useGoogleAuth = () => {
                 // Проверяем наличие токена в sessionStorage при загрузке
                 const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
                 if (storedToken) {
-                    const tokenData = JSON.parse(storedToken);
-                    // Проверяем, не истек ли токен (хотя GIS обычно сам его обновляет)
-                    if (tokenData.expires_in > 0) {
-                         window.gapi.client.setToken(tokenData);
-                         await fetchUserProfile(tokenData.access_token);
-                    } else {
-                        // Токен истек, чистим
-                        signOut();
+                    try {
+                        const tokenData = JSON.parse(storedToken);
+                         // Проверяем, не истек ли токен (хотя GIS обычно сам его обновляет)
+                        if (tokenData && tokenData.access_token) {
+                             window.gapi.client.setToken(tokenData);
+                             await fetchUserProfile(tokenData.access_token);
+                        } else {
+                            // Токен истек или некорректен, чистим
+                            signOut();
+                        }
+                    } catch (e) {
+                         console.error("Failed to parse stored token", e);
+                         signOut();
                     }
                 }
                 
@@ -134,7 +144,9 @@ export const useGoogleAuth = () => {
             return;
         }
         setIsLoading(true);
-        window.tokenClient.requestAccessToken({ prompt: 'consent' });
+        // prompt: 'consent' будет каждый раз запрашивать разрешение, 
+        // лучше убрать для более гладкого входа
+        window.tokenClient.requestAccessToken({ prompt: '' });
     }, [isInitialized]);
 
     return { user, signIn, signOut, isInitialized, isLoading };
