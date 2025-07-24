@@ -7,7 +7,7 @@ export const config = {
   google: {
     clientId: "205595350382-7a3mptfofbe1d0puirov0u1q5f5ma4oh.apps.googleusercontent.com",
     // ИСПРАВЛЕНИЕ: Добавлены scope для получения профиля пользователя
-    scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+    scope: "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
     discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
   },
 
