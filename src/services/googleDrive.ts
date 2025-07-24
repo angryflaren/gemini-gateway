@@ -6,6 +6,7 @@ const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
 
 declare const gapi: any;
 
+// Функция getAppFolderId остается без изменений
 const getAppFolderId = async (): Promise<string> => {
     const response = await gapi.client.drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
@@ -27,6 +28,7 @@ const getAppFolderId = async (): Promise<string> => {
     }
 };
 
+// Функция listChats остается без изменений
 export const listChats = async (): Promise<Chat[]> => {
     const folderId = await getAppFolderId();
     const response = await gapi.client.drive.files.list({
@@ -41,14 +43,14 @@ export const listChats = async (): Promise<Chat[]> => {
     })) || [];
 };
 
+// Функция getChatContent остается без изменений
 export const getChatContent = async (fileId: string): Promise<ChatContent> => {
     try {
         const response = await gapi.client.drive.files.get({
             fileId: fileId,
             alt: 'media',
         });
-
-        // **ИСПРАВЛЕНИЕ**: Если тело ответа пустое (новый файл), возвращаем пустую структуру
+        
         const content = response.body ? JSON.parse(response.body) : { conversation: [] };
         
         const fileDetails = await gapi.client.drive.files.get({
@@ -62,7 +64,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             conversation: content.conversation || [] 
         };
     } catch (e: any) {
-        // Если ошибка парсинга (например, 204 No Content), это тоже новый файл
         if (e.result && e.result.error.code !== 404) {
              const fileDetails = await gapi.client.drive.files.get({
                 fileId: fileId,
@@ -75,16 +76,16 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             };
         }
         console.error("Failed to get chat content", e);
-        throw e; // Пробрасываем ошибку дальше, если это не ожидаемая ошибка
+        throw e;
     }
 };
 
+// --- ИСПРАВЛЕННАЯ ФУНКЦИЯ SAVECHAT ---
+// Теперь она обновляет ТОЛЬКО контент файла, не трогая его метаданные (имя и расположение).
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
     if (!chatData.id) {
         throw new Error("Cannot save a chat without an ID. Use createNewChatFile first.");
     }
-    
-    const fileName = `${chatData.name || 'New Chat'}.json`;
     
     // В теле файла храним только диалог
     const { id, name, ...conversationData } = chatData;
@@ -92,12 +93,11 @@ export const saveChat = async (chatData: ChatContent): Promise<string> => {
     
     const blob = new Blob([fileContent], { type: 'application/json' });
 
-    // Обновляем и контент, и имя
+    // Создаем форму БЕЗ части с метаданными.
     const form = new FormData();
-    const metadata = { name: fileName };
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     form.append('file', blob);
 
+    // Этот запрос теперь обновит только содержимое файла.
     await gapi.client.request({
         path: `/upload/drive/v3/files/${chatData.id}`,
         method: 'PATCH',
@@ -108,6 +108,7 @@ export const saveChat = async (chatData: ChatContent): Promise<string> => {
     return chatData.id;
 };
 
+// Функция renameChatFile остается без изменений
 export const renameChatFile = async (fileId: string, newName: string): Promise<void> => {
     const fileName = newName.endsWith('.json') ? newName : `${newName}.json`;
     await gapi.client.drive.files.update({
@@ -116,6 +117,7 @@ export const renameChatFile = async (fileId: string, newName: string): Promise<v
     });
 }
 
+// Функция createNewChatFile остается без изменений
 export const createNewChatFile = async (title: string): Promise<Chat> => {
     const folderId = await getAppFolderId();
     const fileName = `${title}.json`;
