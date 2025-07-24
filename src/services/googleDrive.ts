@@ -7,14 +7,21 @@ const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
 declare const gapi: any;
 
 const getAppFolderId = async (): Promise<string> => {
+    // --- ИСПРАВЛЕНИЕ: Запрос был изменен для повышения надежности ---
+    // Старый запрос: `mimeType='...' and name='...'` (искал по всему Drive)
+    // Новый, более строгий запрос ищет папку ИСКЛЮЧИТЕЛЬНО в корневой директории ('root' in parents),
+    // что предотвращает использование папок-дубликатов или перемещенных папок.
     const response = await gapi.client.drive.files.list({
-        q: `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
+        q: `'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
+        spaces: 'drive', // Явно указываем область поиска
         fields: 'files(id, name)',
     });
 
     if (response.result.files && response.result.files.length > 0) {
+        // Папка найдена в корне, возвращаем ее ID
         return response.result.files[0].id!;
     } else {
+        // Папка не найдена в корне, создаем ее там же
         const fileMetadata = {
             name: APP_DATA_FOLDER,
             mimeType: 'application/vnd.google-apps.folder',
@@ -48,7 +55,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             alt: 'media',
         });
 
-        // **ИСПРАВЛЕНИЕ**: Если тело ответа пустое (новый файл), возвращаем пустую структуру
         const content = response.body ? JSON.parse(response.body) : { conversation: [] };
         
         const fileDetails = await gapi.client.drive.files.get({
@@ -62,7 +68,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             conversation: content.conversation || [] 
         };
     } catch (e: any) {
-        // Если ошибка парсинга (например, 204 No Content), это тоже новый файл
         if (e.result && e.result.error.code !== 404) {
              const fileDetails = await gapi.client.drive.files.get({
                 fileId: fileId,
@@ -75,7 +80,7 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             };
         }
         console.error("Failed to get chat content", e);
-        throw e; // Пробрасываем ошибку дальше, если это не ожидаемая ошибка
+        throw e;
     }
 };
 
@@ -85,14 +90,10 @@ export const saveChat = async (chatData: ChatContent): Promise<string> => {
     }
     
     const fileName = `${chatData.name || 'New Chat'}.json`;
-    
-    // В теле файла храним только диалог
     const { id, name, ...conversationData } = chatData;
     const fileContent = JSON.stringify(conversationData, null, 2);
-    
     const blob = new Blob([fileContent], { type: 'application/json' });
 
-    // Обновляем и контент, и имя
     const form = new FormData();
     const metadata = { name: fileName };
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
