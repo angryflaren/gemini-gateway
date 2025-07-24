@@ -403,7 +403,7 @@ export default function App() {
 
     const handleSubmit = async () => {
         if (!apiKey) { alert("Please enter your Gemini API key."); return; }
-        if (!inputText.trim() || !activeChatContent || isContentLoading) return;
+        if (!inputText.trim()) return;
 
         setIsLoading(true);
         setError(null);
@@ -412,18 +412,43 @@ export default function App() {
         const currentUserTurn: ConversationTurn = {
             type: 'user', prompt: inputText, attachments: [], timestamp
         };
-
-        const updatedConversation = [...(activeChatContent.conversation || []), currentUserTurn];
         
-        let finalChatName = activeChatContent.name;
-        if (activeChatContent.conversation.length === 0 && finalChatName.startsWith("New Chat")) {
+        // --- ИСПРАВЛЕНИЕ: Логика создания и обновления чата ---
+        let currentChatContent = activeChatContent;
+
+        // Если пользователь авторизован, но чат не активен (например, первый запрос)
+        if (user && !currentChatContent) {
+            try {
+                const newChat = await createNewChatFile(inputText.substring(0, 40) || `New Chat ${timestamp}`);
+                await refreshChats(newChat.id); // Обновляем список и делаем новый чат активным
+                const newChatContent = await getChatContent(newChat.id);
+                currentChatContent = newChatContent;
+                setActiveChatContent(newChatContent);
+            } catch (err) {
+                 console.error("Failed to create initial chat:", err);
+                 setError("Could not create and save the chat. Please try again.");
+                 setIsLoading(false);
+                 return;
+            }
+        }
+        
+        // Формируем обновленную беседу
+        const updatedConversation = [...(currentChatContent?.conversation || []), currentUserTurn];
+        
+        let finalChatName = currentChatContent?.name || "Untitled Chat";
+        if (currentChatContent && currentChatContent.conversation.length === 0 && finalChatName.startsWith("New Chat")) {
              finalChatName = inputText.substring(0, 40) || `Chat from ${timestamp}`;
         }
         
-        const updatedChatContent: ChatContent = { ...activeChatContent, name: finalChatName, conversation: updatedConversation };
+        const updatedChatContent: ChatContent = { 
+            ...(currentChatContent || { id: '', name: '', conversation: [] }), 
+            name: finalChatName, 
+            conversation: updatedConversation 
+        };
         setActiveChatContent(updatedChatContent);
-        if (finalChatName !== activeChatContent.name) {
-            setChats(prev => prev.map(c => c.id === activeChatContent.id ? { ...c, name: finalChatName } : c));
+
+        if (currentChatContent && finalChatName !== currentChatContent.name) {
+            setChats(prev => prev.map(c => c.id === currentChatContent!.id ? { ...c, name: finalChatName } : c));
         }
 
         const formData = new FormData();
@@ -586,8 +611,8 @@ export default function App() {
                                     className={`w-full px-4 py-3 pr-24 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
                                 />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading || !activeChatContent || isContentLoading}
-                                        className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading || !activeChatContent || isContentLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading || !apiKey }
+                                        className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading || !apiKey) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
                                     </button>
                                 </div>
