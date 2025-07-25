@@ -1,13 +1,189 @@
-// src/App.tsx
-
 import React, { useState, useRef, useEffect, useCallback } from "react";
-// ... (все импорты остаются без изменений)
+import "katex/dist/katex.min.css";
+import { BlockMath } from "react-katex";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
+import JSZip from 'jszip';
+
+import { config } from "./config";
+import { ResponsePart, ConversationTurn, Chat, ChatContent, UserProfile } from "./types";
 import { listChats, getChatContent, saveChat, createNewChatFile, renameChatFile } from "./services/googleDrive";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
-// ... (все иконки и вспомогательные компоненты остаются без изменений)
+// --- ИКОНКИ ---
+const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const PaperclipIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.44 11.05L12.39 19.64C11.11 20.87 9.07 21.01 7.64 19.93C6.21 18.85 6.04 16.86 7.27 15.58L15.86 6.53C16.65 5.74 17.91 5.74 18.7 6.53C19.49 7.32 19.49 8.58 18.7 9.37L10.11 18.42C9.67 18.86 9.01 19.03 8.38 18.85C7.75 18.67 7.23 18.16 7.05 17.53C6.87 16.9 7.04 16.24 7.48 15.8L16.03 6.75C17.26 5.47 19.3 5.33 20.38 6.41C21.46 7.49 21.6 9.53 20.32 10.81L11.27 19.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const FolderIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 10H12L10 8H2C1.45 8 1 8.45 1 9V19C1 19.55 1.45 20 2 20H22C22.55 20 23 19.55 23 19V11C23 10.45 22.55 10 22 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const GithubIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>);
+const ArrowUpIcon = ({ className = "w-4 h-4" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const SpinnerIcon = ({ className = "w-4 h-4 animate-spin" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v3m0 12v3M4.2 4.2l2.1 2.1m11.4 11.4l2.1 2.1M3 12h3m12 0h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const PlusIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+const GoogleIcon = ({ className = "w-5 h-5" }) => (<svg className={className} role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.62 2.04-4.78 2.04-3.83 0-6.9-3.1-6.9-6.9s3.07-6.9 6.9-6.9c2.1 0 3.54.85 4.4 1.73l2.55-2.55C18.03 2.52 15.48 1.5 12.48 1.5c-6.18 0-11.16 4.92-11.16 10.92s4.98 10.92 11.16 10.92c6.5 0 10.8-4.55 10.8-11.16 0-.75-.08-1.35-.2-2.04h-10.6z" fill="currentColor" /></svg>);
+const FileIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"></path> </svg>);
+const FolderIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
+const GithubIconForAttachment = () => (<svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
+const EditIcon = ({ className = "w-4 h-4" }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>);
 
-// --- НОВОЕ: Константа и хелпер для создания локальной сессии ---
+// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
+const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void }) => {
+    const isRepo = file.name.startsWith('gh_repo:::');
+    const isFolder = file.name.endsWith('.zip');
+    let displayName: string = file.name;
+    let Icon = FileIconForAttachment;
+
+    if (isRepo) {
+        displayName = file.name.replace('gh_repo:::', '').replace('_context.txt', '').replace(/---/g, '/');
+        Icon = GithubIconForAttachment;
+    } else if (isFolder) {
+        displayName = file.name.replace('.zip', '');
+        Icon = FolderIconForAttachment;
+    }
+
+    return (
+        <div className="flex items-center gap-1 text-sm max-w-xs pl-2 pr-1 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-slate-300">
+            <Icon />
+            <span className="truncate" title={displayName}>{displayName}</span>
+            {onRemove && <button onClick={onRemove} className="text-red-500 hover:text-red-400 font-bold text-lg leading-none flex items-center justify-center w-4 h-4">×</button>}
+        </div>
+    );
+};
+
+const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = (contentToCopy: string) => {
+        if (typeof contentToCopy !== 'string') return;
+        navigator.clipboard.writeText(contentToCopy).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    const markdownPlugins = [remarkMath, remarkGfm];
+    const htmlPlugins = [rehypeKatex];
+
+    switch (part.type) {
+        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
+        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h2>;
+        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h3>;
+        case 'annotated_heading': return (<div className="flex items-center gap-3 pt-4"><h4 className="text-lg font-semibold break-words">{part.content}</h4><span className="info-tag">{part.tag}</span></div>);
+        case 'quote_heading': return (
+            <blockquote className="my-4 border-l-4 p-4 rounded-r-lg quote-heading-container">
+                <p className="text-lg font-medium italic quote-text">
+                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>
+                </p>
+                {part.source && (
+                    <footer className="block text-right text-sm mt-2 not-italic quote-cite">
+                        — <cite>{part.source}</cite>
+                    </footer>
+                )}
+            </blockquote>
+        );
+        case 'text': return (<ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>);
+        case 'code':
+            const codeContent = String(part.content || '');
+            return (
+                <div className="relative group my-4 rounded-md bg-gray-200 dark:bg-[#282c34] overflow-x-auto">
+                    <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}</button>
+                    <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{
+                        margin: 0,
+                        padding: '1rem',
+                        paddingTop: '1rem',
+                        backgroundColor: 'transparent'
+                    }}>{codeContent}</SyntaxHighlighter>
+                </div>
+            );
+        case 'math': return <BlockMath math={part.content} />;
+        case 'list':
+          return (
+            <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">
+              {Array.isArray(part.items) && part.items.map((item, i) => (
+                <li key={i}>
+                  <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>
+                    {item}
+                  </ReactMarkdown>
+                </li>
+              ))}
+            </ul>
+          );
+        default:
+            const unknownPart = part as any;
+            return (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong className="font-bold">Unknown Block Type!</strong><span className="block sm:inline"> An unknown block type '{unknownPart?.type}' was received.</span><pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre></div>);
+    }
+});
+
+const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm dark:border dark:border-gray-700 rounded-lg shadow-xl p-6 w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-slate-100">{config.helpModal.title}</h3>
+                <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+                    <p>{config.helpModal.introduction}</p>
+                    <div><h4 className="font-semibold">{config.helpModal.apiKeyTitle}</h4><p>{config.helpModal.apiKeySection}</p></div>
+                    <div><h4 className="font-semibold">{config.helpModal.filesTitle}</h4><p>{config.helpModal.filesSection}</p></div>
+                    <div><h4 className="font-semibold">{config.helpModal.repoTitle}</h4><ReactMarkdown>{config.helpModal.repoSection}</ReactMarkdown></div>
+                    <div><h4 className="font-semibold">{config.helpModal.contactTitle}</h4><ReactMarkdown>{config.helpModal.contactSection}</ReactMarkdown></div>
+                </div>
+                <div className="flex justify-end mt-6"><button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{config.helpModal.closeButton}</button></div>
+            </div>
+        </div>
+    );
+};
+
+const RepoCloneModal = ({ isOpen, onClose, onSubmit, isCloning }: { isOpen: boolean, onClose: () => void, onSubmit: (url: string) => void, isCloning: boolean }) => {
+    const [url, setUrl] = useState("");
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm dark:border dark:border-gray-700 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-slate-100">{config.repoModal.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">{config.repoModal.description}</p>
+                <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={config.repoModal.placeholder} className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 bg-gray-50 border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 dark:bg-gray-700/50 dark:border-gray-600 dark:focus:border-blue-500 dark:text-white" />
+                <div className="flex justify-end gap-4 mt-6">
+                    <button onClick={onClose} disabled={isCloning} className="px-4 py-2 text-sm rounded-md text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-gray-800">{config.repoModal.cancelButton}</button>
+                    <button onClick={() => onSubmit(url)} disabled={isCloning || !url} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-500">
+                        {isCloning ? config.repoModal.submitButtonCloning : config.repoModal.submitButton}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: UserProfile | null, onLogin: () => void, onLogout: () => void, isLoading: boolean, isReady: boolean }) => {
+    if (user) {
+        return (
+            <div className="relative group">
+                <img src={user.imageUrl} alt={user.name} className="w-8 h-8 rounded-full cursor-pointer" />
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 hidden group-hover:block z-20">
+                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b dark:border-gray-600">
+                        <p className="font-semibold truncate">{user.name}</p>
+                        <p className="text-xs truncate">{user.email}</p>
+                    </div>
+                    <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); }} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Sign Out
+                    </a>
+                </div>
+            </div>
+        );
+    }
+    return (
+        <button
+            onClick={onLogin}
+            disabled={isLoading || !isReady}
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+            aria-label="Sign in with Google"
+        >
+            {isLoading ? <SpinnerIcon /> : <GoogleIcon />}
+        </button>
+    );
+}
+
+// --- КОНСТАНТА И ХЕЛПЕР ДЛЯ ЛОКАЛЬНОЙ СЕССИИ ---
 const LOCAL_CHAT_ID = "local-session";
 const createLocalChat = (): ChatContent => ({
     id: LOCAL_CHAT_ID,
@@ -17,7 +193,6 @@ const createLocalChat = (): ChatContent => ({
 
 // --- ОСНОВНОЙ КОМПОНЕНТ APP ---
 export default function App() {
-    // ... (все хуки useState, useRef и useEffect для UI остаются без изменений)
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [apiKey, setApiKey] = useState("");
     const [model, setModel] = useState(config.models[0].id);
@@ -107,7 +282,6 @@ export default function App() {
             if (newActiveChatId !== activeChatId) {
                 setActiveChatId(newActiveChatId);
             } else {
-                 // Если активный чат не изменился, все равно нужно снять флаг загрузки
                 setIsContentLoading(false);
             }
             
@@ -131,20 +305,16 @@ export default function App() {
         }
     }, [user, isInitialized, refreshChats]);
 
-    // ИСПРАВЛЕНИЕ: Упрощенная и более надежная логика
     const handleCreateNewChat = async () => {
         if (isAuthLoading || !user) {
-            // Если пользователь не вошел, просто сбрасываем состояние к пустому локальному чату
             setActiveChatId(LOCAL_CHAT_ID);
             setActiveChatContent(createLocalChat());
             return;
         };
-        setIsLoading(true); // Используем общий лоадер
+        setIsLoading(true);
         setError(null);
         try {
-            // 1. Создаем новый пустой файл на Drive
             const newChat = await createNewChatFile(`New Chat ${new Date().toLocaleString()}`);
-            // 2. Обновляем список чатов, указав, что хотим выбрать только что созданный
             await refreshChats(newChat.id);
         } catch (err) {
             console.error("Failed to create new chat:", err);
@@ -256,7 +426,6 @@ export default function App() {
         }
     };
     
-    // --- ИЗМЕНЕНИЕ: Полностью переработанная логика handleSubmit ---
     const handleSubmit = async () => {
         if (!apiKey) { alert("Please enter your Gemini API key."); return; }
         if (!inputText.trim() || !activeChatContent) return;
@@ -267,26 +436,20 @@ export default function App() {
         const userTurn: ConversationTurn = {
             type: 'user',
             prompt: inputText,
-            attachments: [], // Логику для base64 можно будет добавить позже
+            attachments: [],
             timestamp: new Date().toLocaleTimeString()
         };
         
-        // Очищаем поля ввода сразу
         const currentInput = inputText;
         const currentFiles = [...attachedFiles];
         setInputText("");
         setAttachedFiles([]);
 
-        // Используем функциональное обновление, чтобы избежать проблем с "устаревшим" состоянием
         setActiveChatContent(prev => {
-            if (!prev) return prev; // На всякий случай
+            if (!prev) return prev;
             const isFirstMessage = prev.id === LOCAL_CHAT_ID && prev.conversation.length === 0;
             const newName = isFirstMessage ? currentInput.substring(0, 50) || "New Chat" : prev.name;
-            return {
-                ...prev,
-                name: newName,
-                conversation: [...prev.conversation, userTurn]
-            };
+            return { ...prev, name: newName, conversation: [...prev.conversation, userTurn] };
         });
 
         try {
@@ -298,9 +461,7 @@ export default function App() {
             currentFiles.forEach(file => formData.append("files", file));
 
             const response = await fetch(`${config.backendUrl}/api/generate`, {
-                method: "POST",
-                headers: { 'ngrok-skip-browser-warning': 'true' },
-                body: formData
+                method: "POST", headers: { 'ngrok-skip-browser-warning': 'true' }, body: formData
             });
 
             if (!response.ok) {
@@ -310,36 +471,28 @@ export default function App() {
 
             const responseParts: ResponsePart[] = await response.json();
             const aiTurn: ConversationTurn = {
-                type: 'ai',
-                parts: responseParts,
-                timestamp: new Date().toLocaleTimeString()
+                type: 'ai', parts: responseParts, timestamp: new Date().toLocaleTimeString()
             };
             
-            // Снова используем функциональное обновление для добавления ответа AI
             setActiveChatContent(prev => {
                 if (!prev) return null;
                 const updatedConversation = [...prev.conversation, aiTurn];
 
-                // Асинхронно сохраняем чат в фоне
-                // Это не будет блокировать обновление UI
                 const handleSave = async () => {
                     if (user && isInitialized) {
                         let chatToSave = { ...prev, conversation: updatedConversation };
                         
-                        // Если это был локальный чат, создаем его на Drive
                         if (chatToSave.id === LOCAL_CHAT_ID) {
                             try {
                                 const newChatFile = await createNewChatFile(chatToSave.name);
-                                chatToSave.id = newChatFile.id; // Присваиваем новый ID
+                                chatToSave.id = newChatFile.id;
                                 await saveChat(chatToSave);
-                                // Обновляем список чатов в боковой панели и делаем новый чат активным
                                 await refreshChats(newChatFile.id);
                             } catch (e) {
                                 console.error("Failed to promote local chat to Drive:", e);
                                 setError("Could not save the new chat to Google Drive.");
                             }
                         } else {
-                            // Просто сохраняем существующий чат
                             await saveChat(chatToSave);
                         }
                     }
@@ -353,17 +506,14 @@ export default function App() {
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
             const errorTurn: ConversationTurn = {
-                type: 'ai',
-                parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
+                type: 'ai', parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
                 timestamp: new Date().toLocaleTimeString()
             };
-            // Добавляем сообщение об ошибке в чат
             setActiveChatContent(prev => prev ? { ...prev, conversation: [...prev.conversation, errorTurn] } : null);
         } finally {
             setIsLoading(false);
         }
     };
-
 
     return (
         <>
@@ -481,7 +631,6 @@ export default function App() {
                                     className={`w-full px-4 py-3 pr-24 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
                                 />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    {/* --- ИЗМЕНЕНИЕ: Упрощенное условие для disabled --- */}
                                     <button onClick={handleSubmit} disabled={!inputText.trim() || isLoading || isContentLoading}
                                         className={`px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 ${(!inputText.trim() || isLoading || isContentLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
@@ -491,7 +640,6 @@ export default function App() {
                         </div>
                     </div>
 
-                    {/* Панель истории чатов (Справа) */}
                     <aside className="lg:col-span-1 flex flex-col gap-4">
                         <div className={`p-4 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1 flex flex-col`}>
                             {isAuthLoading ? (
