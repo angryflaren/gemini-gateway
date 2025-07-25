@@ -42,11 +42,11 @@ export const useGoogleAuth = () => {
 
     const signOut = useCallback(() => {
         const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
-        if (storedToken) {
+        if (storedToken && window.google?.accounts?.oauth2) { // ИСПРАВЛЕНИЕ: Проверяем наличие window.google.accounts.oauth2
             try {
                 const tokenData = JSON.parse(storedToken);
                 if (tokenData.access_token) {
-                    window.google?.accounts.oauth2.revoke(tokenData.access_token, () => {});
+                    window.google.accounts.oauth2.revoke(tokenData.access_token, () => {});
                 }
             } catch (e) {
                 console.error("Failed to parse token for sign out:", e)
