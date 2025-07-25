@@ -51,8 +51,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             alt: 'media',
         });
         
-        // Если тело ответа пустое (например, для только что созданного файла),
-        // возвращаем пустой диалог, чтобы избежать ошибки JSON.parse.
         const content = response.body && response.body.length > 0 
             ? JSON.parse(response.body) 
             : { conversation: [] };
@@ -68,8 +66,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             conversation: content.conversation || [] 
         };
     } catch (e: any) {
-         // Упрощенная обработка ошибок: если не удалось получить контент,
-         // все равно пытаемся получить имя и вернуть пустой чат.
         if (e.result && e.result.error.code !== 404) {
              const fileDetails = await gapi.client.drive.files.get({
                 fileId: fileId,
@@ -86,17 +82,19 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
     }
 };
 
-// Функция saveChat остается без изменений
+// ИСПРАВЛЕНИЕ: Функция теперь просто сохраняет или обновляет контент
 export const saveChat = async (chatData: ChatContent): Promise<string> => {
     if (!chatData.id) {
         throw new Error("Cannot save a chat without an ID. Use createNewChatFile first.");
     }
     
-    const { id, name, ...conversationData } = chatData;
+    // Мы передаем только conversation, чтобы не хранить дублирующую информацию (id, name)
+    const conversationData = { conversation: chatData.conversation };
     const fileContent = JSON.stringify(conversationData, null, 2);
     
     const blob = new Blob([fileContent], { type: 'application/json' });
 
+    // Используем тот же надежный метод загрузки, что и для создания
     const form = new FormData();
     form.append('file', blob);
 
@@ -119,34 +117,31 @@ export const renameChatFile = async (fileId: string, newName: string): Promise<v
     });
 }
 
-// --- ИЗМЕНЕННАЯ ФУНКЦИЯ ---
-// Теперь она принимает контент и создает файл с данными за один вызов.
-export const createNewChatFile = async (title: string, conversation: ConversationTurn[] = []): Promise<Chat> => {
+// ИСПРАВЛЕНИЕ: Функция теперь создает пустой файл в нужной папке, что более надежно
+export const createNewChatFile = async (title: string): Promise<Chat> => {
     const folderId = await getAppFolderId();
     const fileName = `${title}.json`;
 
-    // Данные для файла теперь включают переданный диалог
-    const fileBody = { conversation };
-    
-    const blob = new Blob([JSON.stringify(fileBody, null, 2)], { type: 'application/json' });
-    
     const metadata = {
         name: fileName,
         mimeType: 'application/json',
         parents: [folderId],
     };
 
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', blob);
-
-    const response = await gapi.client.request({
-        path: '/upload/drive/v3/files',
-        method: 'POST',
-        params: { uploadType: 'multipart', fields: 'id, name, createdTime' },
-        body: form,
+    // Создаем пустой файл с метаданными
+    const response = await gapi.client.drive.files.create({
+        resource: metadata,
+        fields: 'id, name, createdTime',
     });
     
+    // Сразу же загружаем в него пустой диалог, чтобы избежать ошибок при чтении
+    const initialContent: ChatContent = {
+        id: response.result.id,
+        name: title,
+        conversation: []
+    };
+    await saveChat(initialContent);
+
     return {
         id: response.result.id,
         name: response.result.name.replace('.json', ''),
