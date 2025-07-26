@@ -4,6 +4,8 @@ import { BlockMath } from "react-katex";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import JSZip from 'jszip';
 
@@ -54,16 +56,18 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
 const ContentRenderer = React.memo(({ content }: { content: string }) => {
     const markdownPlugins = [remarkGfm];
     
+    // Регулярное выражение для поиска блоков $$...$$
     const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
 
     return (
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
             {parts.map((part, index) => {
                 if (part.startsWith('$$') && part.endsWith('$$')) {
+                    // Это математическая формула
                     const mathContent = part.slice(2, -2);
                     return <BlockMath key={index} math={mathContent} />;
-                }
-                if (part) {
+                } else if (part) {
+                    // Это обычный текст
                     return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
                 }
                 return null;
@@ -71,7 +75,6 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
         </div>
     );
 });
-
 
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
     const [copied, setCopied] = useState(false);
@@ -83,17 +86,18 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
         });
     };
 
-    const markdownPlugins = [remarkGfm];
+    const markdownPlugins = [remarkMath, remarkGfm];
+    const htmlPlugins = [rehypeKatex];
 
     switch (part.type) {
-        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown>{part.subtitle}</ReactMarkdown></p>}</div>);
-        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h2>;
-        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown>{part.content}</ReactMarkdown></h3>;
+        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
+        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h2>;
+        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h3>;
         case 'annotated_heading': return (<div className="flex items-center gap-3 pt-4"><h4 className="text-lg font-semibold break-words">{part.content}</h4><span className="info-tag">{part.tag}</span></div>);
         case 'quote_heading': return (
             <blockquote className="my-4 border-l-4 p-4 rounded-r-lg quote-heading-container">
                 <p className="text-lg font-medium italic quote-text">
-                    <ReactMarkdown>{part.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>
                 </p>
                 {part.source && (
                     <footer className="block text-right text-sm mt-2 not-italic quote-cite">
@@ -122,7 +126,9 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
             <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">
               {Array.isArray(part.items) && part.items.map((item, i) => (
                 <li key={i}>
-                  <ReactMarkdown remarkPlugins={markdownPlugins}>{item}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>
+                    {item}
+                  </ReactMarkdown>
                 </li>
               ))}
             </ul>
@@ -253,59 +259,16 @@ export default function App() {
 
     const handleCreateNewChat = useCallback(() => {
         setActiveChatId(LOCAL_CHAT_ID);
+        setActiveChatContent(createLocalChat());
     }, []);
 
     useEffect(() => {
-        if (editingChatId && renameInputRef.current) {
-            renameInputRef.current.focus();
-            renameInputRef.current.select();
-        }
-    }, [editingChatId]);
-
-    const refreshChats = useCallback(async () => {
-        if (!user || !isInitialized) return [];
-        try {
-            const chatList = await listChats();
-            setChats(chatList);
-            return chatList;
-        } catch (err) {
-            console.error("Failed to list chats:", err);
-            setError("Could not load chats from Google Drive.");
-            setChats([]);
-            return [];
-        }
-    }, [user, isInitialized]);
-    
-    // Effect for handling user authentication changes
-    useEffect(() => {
-        const initUserSession = async () => {
-            if (user && isInitialized) {
-                setIsContentLoading(true);
-                const chatList = await refreshChats();
-                if (chatList.length > 0) {
-                    setActiveChatId(chatList[0].id); // Load the most recent chat
-                } else {
-                    handleCreateNewChat();
-                }
-                setIsContentLoading(false);
-            } else if (!user && isInitialized) {
-                setChats([]);
-                handleCreateNewChat();
-            }
-        };
-        initUserSession();
-    }, [user, isInitialized, handleCreateNewChat, refreshChats]);
-
-    // Effect for loading chat content when activeChatId changes
-    useEffect(() => {
         const loadChatContent = async () => {
-            if (!activeChatId) {
-                return;
-            }
-            if (activeChatId === LOCAL_CHAT_ID) {
+            if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
                 setActiveChatContent(createLocalChat());
                 return;
             }
+
             if (!user) {
                 handleCreateNewChat();
                 return;
@@ -318,16 +281,50 @@ export default function App() {
                 setActiveChatContent(chatContent);
             } catch (err) {
                 console.error("Failed to load chat content:", err);
-                setError("Could not load selected chat.");
-                await refreshChats(); // Refresh the list in case the chat was deleted
+                setError("Could not load the selected chat. Starting a new one.");
                 handleCreateNewChat();
             } finally {
                 setIsContentLoading(false);
             }
         };
-
         loadChatContent();
-    }, [activeChatId, user, handleCreateNewChat, refreshChats]);
+    }, [activeChatId, user, handleCreateNewChat]);
+
+    useEffect(() => {
+        if (editingChatId && renameInputRef.current) {
+            renameInputRef.current.focus();
+            renameInputRef.current.select();
+        }
+    }, [editingChatId]);
+    
+    useEffect(() => {
+        const init = async () => {
+            if (user && isInitialized) {
+                setIsContentLoading(true);
+                try {
+                    const chatList = await listChats();
+                    setChats(chatList);
+                    if (chatList.length > 0) {
+                        setActiveChatId(chatList[0].id); // Load the most recent chat
+                    } else {
+                        handleCreateNewChat(); // Or create a new one if no history
+                    }
+                } catch (err) {
+                    console.error("Failed to list chats on login:", err);
+                    setError("Could not load chats from Google Drive.");
+                    setChats([]);
+                    handleCreateNewChat();
+                } finally {
+                    setIsContentLoading(false);
+                }
+            } else if (!user && isInitialized) {
+                setChats([]);
+                handleCreateNewChat();
+            }
+        };
+        init();
+    }, [user, isInitialized, handleCreateNewChat]);
+
     
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
@@ -457,11 +454,9 @@ export default function App() {
         setAttachedFiles([]);
     
         const isNewChat = activeChatContent.id === LOCAL_CHAT_ID;
-        const chatNameToSave = isNewChat ? currentInput.substring(0, 50).trim() || "New Chat" : activeChatContent.name;
-
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
-            name: chatNameToSave,
+            name: isNewChat ? currentInput.substring(0, 50).trim() || "New Chat" : activeChatContent.name,
             conversation: [...activeChatContent.conversation, userTurn],
         };
         setActiveChatContent(updatedContentWithUserTurn);
@@ -497,20 +492,33 @@ export default function App() {
                 conversation: [...updatedContentWithUserTurn.conversation, aiTurn],
             };
             
-            setActiveChatContent(finalChatContent);
-            
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
+                    // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Прямое обновление состояния без re-fetch ***
                     if (isNewChat) {
-                        // If it was a new chat, we need to update the UI with the real ID
-                        await refreshChats(); // Refresh the list from the server
-                        setActiveChatId(savedChat.id); // Set the new ID as active
+                        // 1. Обновляем список чатов в стейте, добавляя новый в начало
+                        const newChatItem: Chat = { 
+                            id: savedChat.id, 
+                            name: savedChat.name, 
+                            createdTime: new Date().toISOString() 
+                        };
+                        setChats(prev => [newChatItem, ...prev]);
+                        // 2. Обновляем ID активного чата
+                        setActiveChatId(savedChat.id);
+                        // 3. Обновляем контент активного чата, включая новый ID
+                        setActiveChatContent(savedChat);
+                    } else {
+                        // Если это был не новый чат, просто обновляем контент
+                        setActiveChatContent(savedChat);
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
                     setError("Could not save the chat to Google Drive.");
+                    setActiveChatContent(finalChatContent); // Показываем ответ, даже если не сохранилось
                 }
+            } else {
+                 setActiveChatContent(finalChatContent);
             }
     
         } catch (error) {
