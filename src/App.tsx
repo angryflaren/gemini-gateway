@@ -63,16 +63,13 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
             {parts.map((part, index) => {
                 if (part.startsWith('$$') && part.endsWith('$$')) {
-                    // Это математическая формула
                     const mathContent = part.slice(2, -2);
                     try {
                         return <BlockMath key={index} math={mathContent} />;
                     } catch (error) {
-                        // В случае ошибки в синтаксисе LaTeX, показываем как код
                         return <pre key={index} className="text-red-400 bg-red-900/20 p-2 rounded">Invalid LaTeX: {mathContent}</pre>
                     }
                 } else if (part) {
-                    // Это обычный текст
                     return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
                 }
                 return null;
@@ -112,7 +109,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return <ContentRenderer content={part.content} />; // Интеграция ContentRenderer
+        case 'text': return <ContentRenderer content={part.content} />;
         case 'code':
             const codeContent = String(part.content || '');
             return (
@@ -253,6 +250,11 @@ export default function App() {
     const folderInputRef = useRef<HTMLInputElement>(null);
     const renameInputRef = useRef<HTMLInputElement>(null);
 
+    // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
+    // Этот флаг не позволит `useEffect` заново загружать чат сразу после его создания
+    const skipNextFetch = useRef(false);
+
+
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
     }, [isDarkMode]);
@@ -269,6 +271,13 @@ export default function App() {
     }, []);
 
     useEffect(() => {
+        // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
+        // Проверяем флаг. Если он установлен, пропускаем эту загрузку и сбрасываем флаг.
+        if (skipNextFetch.current) {
+            skipNextFetch.current = false;
+            return;
+        }
+
         const loadChatContent = async () => {
             if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
                 if (activeChatContent?.id !== LOCAL_CHAT_ID) {
@@ -313,12 +322,10 @@ export default function App() {
                 try {
                     const chatList = await listChats();
                     setChats(chatList);
-                    if (activeChatId === LOCAL_CHAT_ID) {
-                        if (chatList.length > 0) {
-                            setActiveChatId(chatList[0].id);
-                        } else {
-                            handleCreateNewChat();
-                        }
+                    if (activeChatId === LOCAL_CHAT_ID && chatList.length > 0) {
+                       setActiveChatId(chatList[0].id);
+                    } else if (activeChatId === LOCAL_CHAT_ID) {
+                        handleCreateNewChat();
                     }
                 } catch (err) {
                     console.error("Failed to list chats on login:", err);
@@ -334,7 +341,7 @@ export default function App() {
             }
         };
         init();
-    }, [user, isInitialized, handleCreateNewChat]);
+    }, [user, isInitialized]); // Убрал handleCreateNewChat и activeChatId из зависимостей для стабильности
 
     
     const handleStartEditing = (chat: Chat) => {
@@ -465,9 +472,11 @@ export default function App() {
         setAttachedFiles([]);
     
         const isNewChat = activeChatContent.id === LOCAL_CHAT_ID;
+        const chatName = isNewChat ? (currentInput.substring(0, 50).trim() || "Untitled") : activeChatContent.name;
+        
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
-            name: isNewChat ? currentInput.substring(0, 50).trim() || "New Chat" : activeChatContent.name,
+            name: chatName,
             conversation: [...activeChatContent.conversation, userTurn],
         };
         setActiveChatContent(updatedContentWithUserTurn);
@@ -512,11 +521,19 @@ export default function App() {
                             name: savedChat.name, 
                             createdTime: new Date().toISOString() 
                         };
+                        
+                        // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
+                        // Устанавливаем флаг, чтобы пропустить следующий `useEffect`
+                        skipNextFetch.current = true;
+                        
                         setChats(prev => [newChatItem, ...prev]);
-                        setActiveChatId(savedChat.id);
                         setActiveChatContent(savedChat);
+                        setActiveChatId(savedChat.id);
+
                     } else {
                         setActiveChatContent(savedChat);
+                        // Обновляем имя в списке, если оно изменилось (маловероятно, но возможно)
+                        setChats(prev => prev.map(c => c.id === savedChat.id ? {...c, name: savedChat.name} : c));
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
