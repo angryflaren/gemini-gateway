@@ -56,7 +56,6 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
 const ContentRenderer = React.memo(({ content }: { content: string }) => {
     const markdownPlugins = [remarkGfm];
     
-    // Регулярное выражение для поиска и разделения по блокам $$...$$
     const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
 
     return (
@@ -250,10 +249,7 @@ export default function App() {
     const folderInputRef = useRef<HTMLInputElement>(null);
     const renameInputRef = useRef<HTMLInputElement>(null);
 
-    // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
-    // Этот флаг не позволит `useEffect` заново загружать чат сразу после его создания
     const skipNextFetch = useRef(false);
-
 
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
@@ -271,8 +267,6 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
-        // Проверяем флаг. Если он установлен, пропускаем эту загрузку и сбрасываем флаг.
         if (skipNextFetch.current) {
             skipNextFetch.current = false;
             return;
@@ -322,10 +316,12 @@ export default function App() {
                 try {
                     const chatList = await listChats();
                     setChats(chatList);
-                    if (activeChatId === LOCAL_CHAT_ID && chatList.length > 0) {
-                       setActiveChatId(chatList[0].id);
-                    } else if (activeChatId === LOCAL_CHAT_ID) {
-                        handleCreateNewChat();
+                    if (activeChatId === LOCAL_CHAT_ID) {
+                        if (chatList.length > 0) {
+                            setActiveChatId(chatList[0].id);
+                        } else {
+                            handleCreateNewChat();
+                        }
                     }
                 } catch (err) {
                     console.error("Failed to list chats on login:", err);
@@ -341,7 +337,7 @@ export default function App() {
             }
         };
         init();
-    }, [user, isInitialized]); // Убрал handleCreateNewChat и activeChatId из зависимостей для стабильности
+    }, [user, isInitialized, handleCreateNewChat]);
 
     
     const handleStartEditing = (chat: Chat) => {
@@ -472,11 +468,9 @@ export default function App() {
         setAttachedFiles([]);
     
         const isNewChat = activeChatContent.id === LOCAL_CHAT_ID;
-        const chatName = isNewChat ? (currentInput.substring(0, 50).trim() || "Untitled") : activeChatContent.name;
-        
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
-            name: chatName,
+            name: isNewChat ? (currentInput.substring(0, 50).trim() || "Untitled Chat") : activeChatContent.name,
             conversation: [...activeChatContent.conversation, userTurn],
         };
         setActiveChatContent(updatedContentWithUserTurn);
@@ -522,8 +516,6 @@ export default function App() {
                             createdTime: new Date().toISOString() 
                         };
                         
-                        // *** ИСПРАВЛЕНИЕ БАГА RACE CONDITION ***
-                        // Устанавливаем флаг, чтобы пропустить следующий `useEffect`
                         skipNextFetch.current = true;
                         
                         setChats(prev => [newChatItem, ...prev]);
@@ -532,12 +524,11 @@ export default function App() {
 
                     } else {
                         setActiveChatContent(savedChat);
-                        // Обновляем имя в списке, если оно изменилось (маловероятно, но возможно)
-                        setChats(prev => prev.map(c => c.id === savedChat.id ? {...c, name: savedChat.name} : c));
                     }
                 } catch (saveError) {
+                    const message = saveError instanceof Error ? saveError.message : "An unknown error occurred.";
                     console.error("Failed to save chat:", saveError);
-                    setError("Could not save the chat to Google Drive.");
+                    setError(`Could not save the chat to Google Drive. Error: ${message}`);
                     setActiveChatContent(finalChatContent);
                 }
             } else {
