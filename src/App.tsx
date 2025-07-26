@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import "katex/dist/katex.min.css";
-import { BlockMath, InlineMath } from "react-katex";
+import { BlockMath } from "react-katex";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
@@ -53,30 +53,28 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
 };
 
 // *** НОВЫЙ КОМПОНЕНТ ДЛЯ РЕНДЕРИНГА ТЕКСТА С ФОРМУЛАМИ ***
-const ContentRenderer = ({ content }: { content: string }) => {
-    const markdownPlugins = [remarkGfm]; // remark-math / rehype-katex не нужны здесь
+const ContentRenderer = React.memo(({ content }: { content: string }) => {
+    const markdownPlugins = [remarkGfm];
     
-    if (!content.includes('$$')) {
-        return <ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={markdownPlugins}>{content}</ReactMarkdown>;
-    }
-
-    const parts = content.split('$$');
+    // Регулярное выражение для поиска блоков $$...$$
+    const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
 
     return (
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
             {parts.map((part, index) => {
-                if (index % 2 === 0) {
+                if (part.startsWith('$$') && part.endsWith('$$')) {
+                    // Это математическая формула
+                    const mathContent = part.slice(2, -2);
+                    return <BlockMath key={index} math={mathContent} />;
+                } else if (part) {
                     // Это обычный текст
                     return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
-                } else {
-                    // Это математическая формула
-                    return <BlockMath key={index} math={part} />;
                 }
+                return null;
             })}
         </div>
     );
-};
-
+});
 
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
     const [copied, setCopied] = useState(false);
@@ -108,7 +106,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return <ContentRenderer content={part.content} />; // *** ИСПОЛЬЗУЕМ НОВЫЙ КОМПОНЕНТ ***
+        case 'text': return <ContentRenderer content={part.content} />;
         case 'code':
             const codeContent = String(part.content || '');
             return (
@@ -261,6 +259,7 @@ export default function App() {
 
     const handleCreateNewChat = useCallback(() => {
         setActiveChatId(LOCAL_CHAT_ID);
+        setActiveChatContent(createLocalChat());
     }, []);
 
     useEffect(() => {
@@ -270,7 +269,7 @@ export default function App() {
                 return;
             }
 
-            if (!user) { // Если пользователь вышел, но остался ID старого чата
+            if (!user) {
                 handleCreateNewChat();
                 return;
             }
@@ -297,39 +296,36 @@ export default function App() {
             renameInputRef.current.select();
         }
     }, [editingChatId]);
-
-    const refreshChats = useCallback(async () => {
-        if (!user || !isInitialized) return;
-        try {
-            const chatList = await listChats();
-            setChats(chatList);
-            return chatList;
-        } catch (err) {
-            console.error("Failed to list chats:", err);
-            setError("Could not load chats from Google Drive.");
-            setChats([]);
-            return [];
-        }
-    }, [user, isInitialized]);
-
+    
     useEffect(() => {
-        if (user && isInitialized) {
-            setIsContentLoading(true);
-            refreshChats().then((chatList) => {
-                if (chatList.length > 0) {
-                    setActiveChatId(chatList[0].id); // Загружаем самый последний чат
-                } else {
-                    handleCreateNewChat(); // Если чатов нет, создаем новый
+        const init = async () => {
+            if (user && isInitialized) {
+                setIsContentLoading(true);
+                try {
+                    const chatList = await listChats();
+                    setChats(chatList);
+                    if (chatList.length > 0) {
+                        setActiveChatId(chatList[0].id); // Load the most recent chat
+                    } else {
+                        handleCreateNewChat(); // Or create a new one if no history
+                    }
+                } catch (err) {
+                    console.error("Failed to list chats on login:", err);
+                    setError("Could not load chats from Google Drive.");
+                    setChats([]);
+                    handleCreateNewChat();
+                } finally {
+                    setIsContentLoading(false);
                 }
-            }).finally(() => {
-                setIsContentLoading(false);
-            });
-        } else if (!user && isInitialized) {
-            setChats([]);
-            handleCreateNewChat();
-        }
-    }, [user, isInitialized, handleCreateNewChat, refreshChats]);
+            } else if (!user && isInitialized) {
+                setChats([]);
+                handleCreateNewChat();
+            }
+        };
+        init();
+    }, [user, isInitialized, handleCreateNewChat]);
 
+    
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
         setEditingChatName(chat.name);
@@ -356,7 +352,6 @@ export default function App() {
         const newName = editingChatName.trim();
         const originalId = editingChatId;
         
-        // Оптимистичное обновление UI
         setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: newName } : c));
         if (activeChatId === originalId) {
             setActiveChatContent(prev => prev ? { ...prev, name: newName } : null);
@@ -458,8 +453,10 @@ export default function App() {
         setInputText("");
         setAttachedFiles([]);
     
+        const isNewChat = activeChatContent.id === LOCAL_CHAT_ID;
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
+            name: isNewChat ? currentInput.substring(0, 50).trim() || "New Chat" : activeChatContent.name,
             conversation: [...activeChatContent.conversation, userTurn],
         };
         setActiveChatContent(updatedContentWithUserTurn);
@@ -490,27 +487,38 @@ export default function App() {
                 timestamp: new Date().toLocaleTimeString()
             };
             
-            let finalChatContent: ChatContent = {
+            let finalChatContent = {
                 ...updatedContentWithUserTurn,
                 conversation: [...updatedContentWithUserTurn.conversation, aiTurn],
-                name: activeChatContent.id === LOCAL_CHAT_ID && activeChatContent.conversation.length === 0
-                      ? currentInput.substring(0, 50).trim() || "New Chat"
-                      : activeChatContent.name,
             };
             
-            setActiveChatContent(finalChatContent);
-    
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
-                    if (savedChat.id !== finalChatContent.id) {
-                       await refreshChats();
-                       setActiveChatId(savedChat.id);
+                    // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Прямое обновление состояния без re-fetch ***
+                    if (isNewChat) {
+                        // 1. Обновляем список чатов в стейте, добавляя новый в начало
+                        const newChatItem: Chat = { 
+                            id: savedChat.id, 
+                            name: savedChat.name, 
+                            createdTime: new Date().toISOString() 
+                        };
+                        setChats(prev => [newChatItem, ...prev]);
+                        // 2. Обновляем ID активного чата
+                        setActiveChatId(savedChat.id);
+                        // 3. Обновляем контент активного чата, включая новый ID
+                        setActiveChatContent(savedChat);
+                    } else {
+                        // Если это был не новый чат, просто обновляем контент
+                        setActiveChatContent(savedChat);
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
                     setError("Could not save the chat to Google Drive.");
+                    setActiveChatContent(finalChatContent); // Показываем ответ, даже если не сохранилось
                 }
+            } else {
+                 setActiveChatContent(finalChatContent);
             }
     
         } catch (error) {
