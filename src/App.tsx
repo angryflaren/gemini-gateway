@@ -52,12 +52,12 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
     );
 };
 
-// *** ИСПРАВЛЕНИЕ №2: Новый компонент для рендеринга текста с формулами ***
+// Новый компонент для рендеринга текста с формулами
 const ContentRenderer = React.memo(({ content }: { content: string }) => {
     const markdownPlugins = [remarkGfm];
     
     // Регулярное выражение для поиска и разделения по блокам $$...$$
-    const parts = content.split(/(\\$\\$[\\s\\S]*?\\$\\$)/g);
+    const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
 
     return (
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
@@ -81,34 +81,6 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
     );
 });
 
-// *** ИСПРАВЛЕНИЕ №2: Новый компонент для рендеринга текста с формулами ***
-const ContentRenderer = React.memo(({ content }: { content: string }) => {
-    const markdownPlugins = [remarkGfm];
-
-    // Регулярное выражение для поиска и разделения по блокам $$...$$
-    const parts = content.split(/(\\$\\$[\\s\\S]*?\\$\\$)/g);
-
-    return (
-        <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
-            {parts.map((part, index) => {
-                if (part.startsWith('$$') && part.endsWith('$$')) {
-                    // Это математическая формула
-                    const mathContent = part.slice(2, -2);
-                    try {
-                        return <BlockMath key={index} math={mathContent} />;
-                    } catch (error) {
-                        // В случае ошибки в синтаксисе LaTeX, показываем как код
-                        return <pre key={index} className="text-red-400 bg-red-900/20 p-2 rounded">Invalid LaTeX: {mathContent}</pre>
-                    }
-                } else if (part) {
-                    // Это обычный текст
-                    return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
-                }
-                return null;
-            })}
-        </div>
-    );
-});
 
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
     const [copied, setCopied] = useState(false);
@@ -140,7 +112,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return <ContentRenderer content={part.content} />; // *** ИСПРАВЛЕНИЕ №2: Интеграция ContentRenderer ***
+        case 'text': return <ContentRenderer content={part.content} />; // Интеграция ContentRenderer
         case 'code':
             const codeContent = String(part.content || '');
             return (
@@ -299,7 +271,6 @@ export default function App() {
     useEffect(() => {
         const loadChatContent = async () => {
             if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
-                // Если нет активного чата или это локальная сессия, создаем новый
                 if (activeChatContent?.id !== LOCAL_CHAT_ID) {
                     setActiveChatContent(createLocalChat());
                 }
@@ -307,7 +278,6 @@ export default function App() {
             }
 
             if (!user) {
-                // Если пользователь не авторизован, сбрасываем на новый локальный чат
                 handleCreateNewChat();
                 return;
             }
@@ -338,30 +308,29 @@ export default function App() {
     
     useEffect(() => {
         const init = async () => {
-            // Исправленный код
             if (user && isInitialized) {
+                setIsContentLoading(true);
                 try {
-                    const savedChat = await saveOrUpdateChat(finalChatContent);
-                    // *** ИСПРАВЛЕНИЕ №1: Прямое обновление состояния без re-fetch ***
-                    if (isNewChat) {
-                        const newChatItem: Chat = { 
-                            id: savedChat.id, 
-                            name: savedChat.name, 
-                            createdTime: new Date().toISOString() 
-                        };
-                        setChats(prev => [newChatItem, ...prev]);
-                        setActiveChatId(savedChat.id);
-                        setActiveChatContent(savedChat);
-                    } else {
-                        setActiveChatContent(savedChat);
+                    const chatList = await listChats();
+                    setChats(chatList);
+                    if (activeChatId === LOCAL_CHAT_ID) {
+                        if (chatList.length > 0) {
+                            setActiveChatId(chatList[0].id);
+                        } else {
+                            handleCreateNewChat();
+                        }
                     }
-                } catch (saveError) {
-                    console.error("Failed to save chat:", saveError);
-                    setError("Could not save the chat to Google Drive.");
-                    setActiveChatContent(finalChatContent);
+                } catch (err) {
+                    console.error("Failed to list chats on login:", err);
+                    setError("Could not load chats from Google Drive.");
+                    setChats([]);
+                    handleCreateNewChat();
+                } finally {
+                    setIsContentLoading(false);
                 }
-            } else {
-                 setActiveChatContent(finalChatContent);
+            } else if (!user && isInitialized) {
+                setChats([]);
+                handleCreateNewChat();
             }
         };
         init();
@@ -537,7 +506,6 @@ export default function App() {
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
-                    // *** ИСПРАВЛЕНИЕ №1: Прямое обновление состояния без re-fetch ***
                     if (isNewChat) {
                         const newChatItem: Chat = { 
                             id: savedChat.id, 
