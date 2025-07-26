@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import "katex/dist/katex.min.css";
-import { BlockMath } from "react-katex";
+import { BlockMath, InlineMath } from "react-katex";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
@@ -52,6 +52,32 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
     );
 };
 
+// *** НОВЫЙ КОМПОНЕНТ ДЛЯ РЕНДЕРИНГА ТЕКСТА С ФОРМУЛАМИ ***
+const ContentRenderer = ({ content }: { content: string }) => {
+    const markdownPlugins = [remarkGfm]; // remark-math / rehype-katex не нужны здесь
+    
+    if (!content.includes('$$')) {
+        return <ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={markdownPlugins}>{content}</ReactMarkdown>;
+    }
+
+    const parts = content.split('$$');
+
+    return (
+        <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
+            {parts.map((part, index) => {
+                if (index % 2 === 0) {
+                    // Это обычный текст
+                    return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
+                } else {
+                    // Это математическая формула
+                    return <BlockMath key={index} math={part} />;
+                }
+            })}
+        </div>
+    );
+};
+
+
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = (contentToCopy: string) => {
@@ -64,13 +90,6 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
 
     const markdownPlugins = [remarkMath, remarkGfm];
     const htmlPlugins = [rehypeKatex];
-    
-    // *** ИСПРАВЛЕНИЕ ДЛЯ МАТЕМАТИКИ ***
-    if (part.type === 'text' && part.content.trim().startsWith('$$') && part.content.trim().endsWith('$$')) {
-        const mathContent = part.content.trim().slice(2, -2);
-        return <BlockMath math={mathContent} />;
-    }
-
 
     switch (part.type) {
         case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
@@ -89,7 +108,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return (<ReactMarkdown className="leading-relaxed break-words prose dark:prose-invert max-w-none" remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>);
+        case 'text': return <ContentRenderer content={part.content} />; // *** ИСПОЛЬЗУЕМ НОВЫЙ КОМПОНЕНТ ***
         case 'code':
             const codeContent = String(part.content || '');
             return (
@@ -240,14 +259,22 @@ export default function App() {
         }
     }, [activeChatContent?.conversation, isLoading]);
 
+    const handleCreateNewChat = useCallback(() => {
+        setActiveChatId(LOCAL_CHAT_ID);
+    }, []);
+
     useEffect(() => {
         const loadChatContent = async () => {
-            if (!activeChatId || !user || activeChatId === LOCAL_CHAT_ID) {
-                if (activeChatId === LOCAL_CHAT_ID) {
-                    setActiveChatContent(createLocalChat());
-                }
+            if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
+                setActiveChatContent(createLocalChat());
                 return;
             }
+
+            if (!user) { // Если пользователь вышел, но остался ID старого чата
+                handleCreateNewChat();
+                return;
+            }
+
             setIsContentLoading(true);
             setError(null);
             try {
@@ -255,15 +282,14 @@ export default function App() {
                 setActiveChatContent(chatContent);
             } catch (err) {
                 console.error("Failed to load chat content:", err);
-                setError("Could not load the selected chat.");
-                setActiveChatContent(createLocalChat());
-                setActiveChatId(LOCAL_CHAT_ID);
+                setError("Could not load the selected chat. Starting a new one.");
+                handleCreateNewChat();
             } finally {
                 setIsContentLoading(false);
             }
         };
         loadChatContent();
-    }, [activeChatId, user]);
+    }, [activeChatId, user, handleCreateNewChat]);
 
     useEffect(() => {
         if (editingChatId && renameInputRef.current) {
@@ -272,51 +298,38 @@ export default function App() {
         }
     }, [editingChatId]);
 
-    const handleCreateNewChat = useCallback(() => {
-        setActiveChatId(LOCAL_CHAT_ID);
-        setActiveChatContent(createLocalChat());
-    }, []);
-
-    const refreshChats = useCallback(async (selectChatId?: string) => {
+    const refreshChats = useCallback(async () => {
         if (!user || !isInitialized) return;
-        setIsContentLoading(true);
         try {
             const chatList = await listChats();
             setChats(chatList);
-            
-            if (selectChatId && chatList.some(c => c.id === selectChatId)) {
-                setActiveChatId(selectChatId);
-            } else if (chatList.length > 0 && !chatList.some(c => c.id === activeChatId)) {
-                // Если текущий чат не в списке, переключаемся на первый
-                setActiveChatId(chatList[0].id);
-            }
+            return chatList;
         } catch (err) {
             console.error("Failed to list chats:", err);
             setError("Could not load chats from Google Drive.");
             setChats([]);
-            handleCreateNewChat(); 
-        } finally {
-             setIsContentLoading(false);
+            return [];
         }
-    }, [user, isInitialized, activeChatId, handleCreateNewChat]);
-    
+    }, [user, isInitialized]);
+
     useEffect(() => {
         if (user && isInitialized) {
-            listChats().then(chatList => {
-                setChats(chatList);
-                handleCreateNewChat();
-            }).catch(err => {
-                console.error("Failed to list chats on login:", err);
-                setError("Could not load chats from Google Drive.");
-                setChats([]);
-                handleCreateNewChat();
+            setIsContentLoading(true);
+            refreshChats().then((chatList) => {
+                if (chatList.length > 0) {
+                    setActiveChatId(chatList[0].id); // Загружаем самый последний чат
+                } else {
+                    handleCreateNewChat(); // Если чатов нет, создаем новый
+                }
+            }).finally(() => {
+                setIsContentLoading(false);
             });
         } else if (!user && isInitialized) {
             setChats([]);
             handleCreateNewChat();
         }
-    }, [user, isInitialized, handleCreateNewChat]);
-    
+    }, [user, isInitialized, handleCreateNewChat, refreshChats]);
+
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
         setEditingChatName(chat.name);
@@ -341,12 +354,14 @@ export default function App() {
         }
 
         const newName = editingChatName.trim();
-        setChats(prev => prev.map(c => c.id === editingChatId ? { ...c, name: newName } : c));
-        if (activeChatId === editingChatId) {
+        const originalId = editingChatId;
+        
+        // Оптимистичное обновление UI
+        setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: newName } : c));
+        if (activeChatId === originalId) {
             setActiveChatContent(prev => prev ? { ...prev, name: newName } : null);
         }
         
-        const originalId = editingChatId;
         handleCancelEditing();
 
         try {
@@ -489,8 +504,8 @@ export default function App() {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
                     if (savedChat.id !== finalChatContent.id) {
-                        setActiveChatContent(savedChat); 
-                        await refreshChats(savedChat.id); 
+                       await refreshChats();
+                       setActiveChatId(savedChat.id);
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
