@@ -48,28 +48,25 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             alt: 'media',
         });
 
-        // Если файл пустой, возвращаем пустой диалог
-        const content = response.body && response.body.length > 0
-            ? JSON.parse(response.body)
+        const content = response.body && response.body.length > 0 
+            ? JSON.parse(response.body) 
             : { conversation: [] };
-
+        
         const fileDetails = await gapi.client.drive.files.get({
             fileId: fileId,
             fields: 'name'
         });
 
-        return {
-            id: fileId,
+        return { 
+            id: fileId, 
             name: fileDetails.result.name.replace('.json', ''),
-            conversation: content.conversation || []
+            conversation: content.conversation || [] 
         };
     } catch (e: any) {
         console.error("Failed to get chat content", e);
-        // Если файл не найден или другая ошибка, не "ломаем" приложение
         if (e.result && e.result.error.code === 404) {
              throw new Error(`Chat with ID ${fileId} not found.`);
         }
-        // Для других ошибок просто вернем пустой чат, чтобы интерфейс не падал
         const fileDetails = await gapi.client.drive.files.get({
             fileId: fileId,
             fields: 'name'
@@ -89,23 +86,15 @@ export const renameChatFile = async (fileId: string, newName: string): Promise<v
        fileId: fileId,
        resource: { name: fileName }
     });
-};
+}
 
-/**
- * Универсальная функция для сохранения или создания чата.
- * Если chatData.id существует, обновляет файл.
- * Если chatData.id это LOCAL_CHAT_ID или отсутствует, создает новый файл.
- * @returns {Promise<ChatContent>} Возвращает обновленные данные чата с новым ID, если он был создан.
- */
 export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatContent> => {
     const LOCAL_CHAT_ID = "local-session";
     const folderId = await getAppFolderId();
     const conversationData = { conversation: chatData.conversation };
     const fileContent = JSON.stringify(conversationData, null, 2);
-    const blob = new Blob([fileContent], { type: 'application/json' });
-
+    
     if (chatData.id && chatData.id !== LOCAL_CHAT_ID) {
-        // --- Обновление существующего чата ---
         await gapi.client.request({
             path: `/upload/drive/v3/files/${chatData.id}`,
             method: 'PATCH',
@@ -113,9 +102,8 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
             headers: { 'Content-Type': 'application/json' },
             body: fileContent,
         });
-        return chatData; // Возвращаем те же данные
+        return chatData;
     } else {
-        // --- Создание нового чата ---
         const fileName = `${chatData.name}.json`;
         const metadata = {
             name: fileName,
@@ -125,7 +113,7 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
 
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', blob);
+        form.append('file', new Blob([fileContent], { type: 'application/json' }));
 
         const response = await gapi.client.request({
             path: '/upload/drive/v3/files',
@@ -142,5 +130,3 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
         };
     }
 };
-
-// Удаляем старые, неиспользуемые функции createNewChatFile и saveChat
