@@ -95,6 +95,7 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
     const fileContent = JSON.stringify(conversationData, null, 2);
     
     if (chatData.id && chatData.id !== LOCAL_CHAT_ID) {
+        // Логика обновления существующего файла (она была правильной)
         await gapi.client.request({
             path: `/upload/drive/v3/files/${chatData.id}`,
             method: 'PATCH',
@@ -104,25 +105,37 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
         });
         return chatData;
     } else {
-        const fileName = `${chatData.name}.json`;
-        const metadata = {
-            name: fileName,
+        // *** ИСПРАВЛЕННАЯ ЛОГИКА СОЗДАНИЯ НОВОГО ФАЙЛА ***
+
+        // 1. Создаём метаданные для нового файла
+        const fileMetadata = {
+            name: `${chatData.name}.json`,
             mimeType: 'application/json',
             parents: [folderId],
         };
 
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', new Blob([fileContent], { type: 'application/json' }));
+        // 2. Создаём пустой файл, чтобы получить его ID
+        const createResponse = await gapi.client.drive.files.create({
+            resource: fileMetadata,
+            fields: 'id, name',
+        });
+        
+        const newFile = createResponse.result;
 
-        const response = await gapi.client.request({
-            path: '/upload/drive/v3/files',
-            method: 'POST',
-            params: { uploadType: 'multipart', fields: 'id,name,createdTime' },
-            body: form,
+        if (!newFile || !newFile.id) {
+            throw new Error("Google Drive API failed to create the file metadata.");
+        }
+
+        // 3. Загружаем содержимое в только что созданный файл по его ID
+        await gapi.client.request({
+            path: `/upload/drive/v3/files/${newFile.id}`,
+            method: 'PATCH',
+            params: { uploadType: 'media' },
+            headers: { 'Content-Type': 'application/json' },
+            body: fileContent,
         });
 
-        const newFile = response.result;
+        // 4. Возвращаем объект чата с новым ID от Google Drive
         return {
             ...chatData,
             id: newFile.id,
