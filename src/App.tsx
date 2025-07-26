@@ -52,12 +52,12 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
     );
 };
 
-// *** НОВЫЙ КОМПОНЕНТ ДЛЯ РЕНДЕРИНГА ТЕКСТА С ФОРМУЛАМИ ***
+// *** ИСПРАВЛЕНИЕ №2: Новый компонент для рендеринга текста с формулами ***
 const ContentRenderer = React.memo(({ content }: { content: string }) => {
     const markdownPlugins = [remarkGfm];
     
-    // Регулярное выражение для поиска блоков $$...$$
-    const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
+    // Регулярное выражение для поиска и разделения по блокам $$...$$
+    const parts = content.split(/(\\$\\$[\\s\\S]*?\\$\\$)/g);
 
     return (
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
@@ -65,7 +65,12 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
                 if (part.startsWith('$$') && part.endsWith('$$')) {
                     // Это математическая формула
                     const mathContent = part.slice(2, -2);
-                    return <BlockMath key={index} math={mathContent} />;
+                    try {
+                        return <BlockMath key={index} math={mathContent} />;
+                    } catch (error) {
+                        // В случае ошибки в синтаксисе LaTeX, показываем как код
+                        return <pre key={index} className="text-red-400 bg-red-900/20 p-2 rounded">Invalid LaTeX: {mathContent}</pre>
+                    }
                 } else if (part) {
                     // Это обычный текст
                     return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
@@ -75,6 +80,7 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
         </div>
     );
 });
+
 
 const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
     const [copied, setCopied] = useState(false);
@@ -106,7 +112,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return <ContentRenderer content={part.content} />;
+        case 'text': return <ContentRenderer content={part.content} />; // *** ИСПРАВЛЕНИЕ №2: Интеграция ContentRenderer ***
         case 'code':
             const codeContent = String(part.content || '');
             return (
@@ -265,11 +271,15 @@ export default function App() {
     useEffect(() => {
         const loadChatContent = async () => {
             if (!activeChatId || activeChatId === LOCAL_CHAT_ID) {
-                setActiveChatContent(createLocalChat());
+                // Если нет активного чата или это локальная сессия, создаем новый
+                if (activeChatContent?.id !== LOCAL_CHAT_ID) {
+                    setActiveChatContent(createLocalChat());
+                }
                 return;
             }
 
             if (!user) {
+                // Если пользователь не авторизован, сбрасываем на новый локальный чат
                 handleCreateNewChat();
                 return;
             }
@@ -290,6 +300,7 @@ export default function App() {
         loadChatContent();
     }, [activeChatId, user, handleCreateNewChat]);
 
+
     useEffect(() => {
         if (editingChatId && renameInputRef.current) {
             renameInputRef.current.focus();
@@ -304,10 +315,12 @@ export default function App() {
                 try {
                     const chatList = await listChats();
                     setChats(chatList);
-                    if (chatList.length > 0) {
-                        setActiveChatId(chatList[0].id); // Load the most recent chat
-                    } else {
-                        handleCreateNewChat(); // Or create a new one if no history
+                    if (activeChatId === LOCAL_CHAT_ID) {
+                        if (chatList.length > 0) {
+                            setActiveChatId(chatList[0].id);
+                        } else {
+                            handleCreateNewChat();
+                        }
                     }
                 } catch (err) {
                     console.error("Failed to list chats on login:", err);
@@ -495,27 +508,23 @@ export default function App() {
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
-                    // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Прямое обновление состояния без re-fetch ***
+                    // *** ИСПРАВЛЕНИЕ №1: Прямое обновление состояния без re-fetch ***
                     if (isNewChat) {
-                        // 1. Обновляем список чатов в стейте, добавляя новый в начало
                         const newChatItem: Chat = { 
                             id: savedChat.id, 
                             name: savedChat.name, 
                             createdTime: new Date().toISOString() 
                         };
                         setChats(prev => [newChatItem, ...prev]);
-                        // 2. Обновляем ID активного чата
                         setActiveChatId(savedChat.id);
-                        // 3. Обновляем контент активного чата, включая новый ID
                         setActiveChatContent(savedChat);
                     } else {
-                        // Если это был не новый чат, просто обновляем контент
                         setActiveChatContent(savedChat);
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
                     setError("Could not save the chat to Google Drive.");
-                    setActiveChatContent(finalChatContent); // Показываем ответ, даже если не сохранилось
+                    setActiveChatContent(finalChatContent);
                 }
             } else {
                  setActiveChatContent(finalChatContent);
