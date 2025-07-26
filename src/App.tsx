@@ -14,7 +14,7 @@ import { ResponsePart, ConversationTurn, Chat, ChatContent, UserProfile } from "
 import { listChats, getChatContent, saveOrUpdateChat, renameChatFile } from "./services/googleDrive";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
-// --- ИКОНКИ (без изменений) ---
+// --- ИКОНКИ ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const PaperclipIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.44 11.05L12.39 19.64C11.11 20.87 9.07 21.01 7.64 19.93C6.21 18.85 6.04 16.86 7.27 15.58L15.86 6.53C16.65 5.74 17.91 5.74 18.7 6.53C19.49 7.32 19.49 8.58 18.7 9.37L10.11 18.42C9.67 18.86 9.01 19.03 8.38 18.85C7.75 18.67 7.23 18.16 7.05 17.53C6.87 16.9 7.04 16.24 7.48 15.8L16.03 6.75C17.26 5.47 19.3 5.33 20.38 6.41C21.46 7.49 21.6 9.53 20.32 10.81L11.27 19.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const FolderIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 10H12L10 8H2C1.45 8 1 8.45 1 9V19C1 19.55 1.45 20 2 20H22C22.55 20 23 19.55 23 19V11C23 10.45 22.55 10 22 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -28,7 +28,7 @@ const FolderIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentCol
 const GithubIconForAttachment = () => (<svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 const EditIcon = ({ className = "w-4 h-4" }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>);
 
-// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ (без изменений) ---
+// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void }) => {
     const isRepo = file.name.startsWith('gh_repo:::');
     const isFolder = file.name.endsWith('.zip');
@@ -64,6 +64,13 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
 
     const markdownPlugins = [remarkMath, remarkGfm];
     const htmlPlugins = [rehypeKatex];
+    
+    // *** ИСПРАВЛЕНИЕ ДЛЯ МАТЕМАТИКИ ***
+    if (part.type === 'text' && part.content.trim().startsWith('$$') && part.content.trim().endsWith('$$')) {
+        const mathContent = part.content.trim().slice(2, -2);
+        return <BlockMath math={mathContent} />;
+    }
+
 
     switch (part.type) {
         case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
@@ -187,7 +194,7 @@ const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: Us
 const LOCAL_CHAT_ID = "local-session";
 const createLocalChat = (): ChatContent => ({
     id: LOCAL_CHAT_ID,
-    name: "Temporary Chat",
+    name: "New Chat",
     conversation: [],
 });
 
@@ -235,17 +242,12 @@ export default function App() {
 
     useEffect(() => {
         const loadChatContent = async () => {
-            if (!activeChatId || !user) {
-                setActiveChatContent(createLocalChat());
+            if (!activeChatId || !user || activeChatId === LOCAL_CHAT_ID) {
+                if (activeChatId === LOCAL_CHAT_ID) {
+                    setActiveChatContent(createLocalChat());
+                }
                 return;
             }
-            // Если выбран локальный чат, но пользователь авторизован,
-            // не загружаем ничего, а просто отображаем временный чат.
-            if (activeChatId === LOCAL_CHAT_ID) {
-                setActiveChatContent(createLocalChat());
-                return;
-            }
-            
             setIsContentLoading(true);
             setError(null);
             try {
@@ -270,46 +272,50 @@ export default function App() {
         }
     }, [editingChatId]);
 
-    const refreshChats = useCallback(async (selectChatId?: string | 'first') => {
+    const handleCreateNewChat = useCallback(() => {
+        setActiveChatId(LOCAL_CHAT_ID);
+        setActiveChatContent(createLocalChat());
+    }, []);
+
+    const refreshChats = useCallback(async (selectChatId?: string) => {
         if (!user || !isInitialized) return;
         setIsContentLoading(true);
         try {
             const chatList = await listChats();
             setChats(chatList);
-            const newActiveChatId = (() => {
-                if (chatList.length === 0) return LOCAL_CHAT_ID;
-                if (selectChatId === 'first') return chatList[0].id;
-                if (selectChatId && chatList.some(c => c.id === selectChatId)) return selectChatId;
-                if (!activeChatId || activeChatId === LOCAL_CHAT_ID || !chatList.some(c => c.id === activeChatId)) return chatList[0].id;
-                return activeChatId;
-            })();
-
-            setActiveChatId(newActiveChatId);
             
+            if (selectChatId && chatList.some(c => c.id === selectChatId)) {
+                setActiveChatId(selectChatId);
+            } else if (chatList.length > 0 && !chatList.some(c => c.id === activeChatId)) {
+                // Если текущий чат не в списке, переключаемся на первый
+                setActiveChatId(chatList[0].id);
+            }
         } catch (err) {
             console.error("Failed to list chats:", err);
             setError("Could not load chats from Google Drive.");
             setChats([]);
-            setActiveChatId(LOCAL_CHAT_ID);
+            handleCreateNewChat(); 
         } finally {
              setIsContentLoading(false);
         }
-    }, [user, isInitialized, activeChatId]);
+    }, [user, isInitialized, activeChatId, handleCreateNewChat]);
     
     useEffect(() => {
         if (user && isInitialized) {
-            refreshChats(); 
+            listChats().then(chatList => {
+                setChats(chatList);
+                handleCreateNewChat();
+            }).catch(err => {
+                console.error("Failed to list chats on login:", err);
+                setError("Could not load chats from Google Drive.");
+                setChats([]);
+                handleCreateNewChat();
+            });
         } else if (!user && isInitialized) {
             setChats([]);
-            setActiveChatId(LOCAL_CHAT_ID);
-            setActiveChatContent(createLocalChat());
+            handleCreateNewChat();
         }
-    }, [user, isInitialized, refreshChats]);
-
-    const handleCreateNewChat = () => {
-        setActiveChatId(LOCAL_CHAT_ID);
-        setActiveChatContent(createLocalChat());
-    };
+    }, [user, isInitialized, handleCreateNewChat]);
     
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
@@ -348,9 +354,11 @@ export default function App() {
         } catch (err) {
             console.error("Failed to rename chat:", err);
             setError("Could not rename the chat. Reverting change.");
-            setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: originalChat?.name || c.name } : c));
-            if (activeChatId === originalId) {
-                setActiveChatContent(prev => prev ? { ...prev, name: originalChat?.name || prev.name } : null);
+            if (originalChat) {
+                setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: originalChat.name } : c));
+                if (activeChatId === originalId) {
+                    setActiveChatContent(prev => prev ? { ...prev, name: originalChat.name } : null);
+                }
             }
         }
     };
@@ -435,7 +443,6 @@ export default function App() {
         setInputText("");
         setAttachedFiles([]);
     
-        // Немедленно обновляем UI с сообщением пользователя
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
             conversation: [...activeChatContent.conversation, userTurn],
@@ -468,11 +475,9 @@ export default function App() {
                 timestamp: new Date().toLocaleTimeString()
             };
             
-            // Формируем финальное состояние чата перед сохранением
             let finalChatContent: ChatContent = {
                 ...updatedContentWithUserTurn,
                 conversation: [...updatedContentWithUserTurn.conversation, aiTurn],
-                // Если это первое сообщение во временном чате, используем его как название
                 name: activeChatContent.id === LOCAL_CHAT_ID && activeChatContent.conversation.length === 0
                       ? currentInput.substring(0, 50).trim() || "New Chat"
                       : activeChatContent.name,
@@ -480,14 +485,12 @@ export default function App() {
             
             setActiveChatContent(finalChatContent);
     
-            // Сохраняем на Google Drive, если пользователь авторизован
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
-                    // Если был создан новый чат (ID изменился), обновляем стейт и список чатов
                     if (savedChat.id !== finalChatContent.id) {
-                        setActiveChatContent(savedChat); // Обновляем активный чат с новым ID
-                        await refreshChats(savedChat.id); // Обновляем список чатов и делаем новый активным
+                        setActiveChatContent(savedChat); 
+                        await refreshChats(savedChat.id); 
                     }
                 } catch (saveError) {
                     console.error("Failed to save chat:", saveError);
@@ -502,7 +505,6 @@ export default function App() {
                 parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
                 timestamp: new Date().toLocaleTimeString()
             };
-            // Добавляем сообщение об ошибке в текущий диалог
             setActiveChatContent(prev => prev ? { ...prev, conversation: [...prev.conversation, errorTurn] } : null);
         } finally {
             setIsLoading(false);
