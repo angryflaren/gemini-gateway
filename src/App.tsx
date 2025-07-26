@@ -427,16 +427,19 @@ export default function App() {
     };
     
     const handleSubmit = async () => {
-        if (!apiKey) { alert("Please enter your Gemini API key."); return; }
+        if (!apiKey) {
+            alert("Please enter your Gemini API key.");
+            return;
+        }
         if (!inputText.trim() || !activeChatContent) return;
-
+    
         setIsLoading(true);
         setError(null);
-
+    
         const userTurn: ConversationTurn = {
             type: 'user',
             prompt: inputText,
-            attachments: [],
+            // attachments: [], // Временно уберем, чтобы упростить
             timestamp: new Date().toLocaleTimeString()
         };
         
@@ -444,14 +447,14 @@ export default function App() {
         const currentFiles = [...attachedFiles];
         setInputText("");
         setAttachedFiles([]);
-
-        setActiveChatContent(prev => {
-            if (!prev) return prev;
-            const isFirstMessage = prev.id === LOCAL_CHAT_ID && prev.conversation.length === 0;
-            const newName = isFirstMessage ? currentInput.substring(0, 50) || "New Chat" : prev.name;
-            return { ...prev, name: newName, conversation: [...prev.conversation, userTurn] };
-        });
-
+    
+        // Немедленно обновляем UI с сообщением пользователя
+        const updatedContentWithUserTurn = {
+            ...activeChatContent,
+            conversation: [...activeChatContent.conversation, userTurn]
+        };
+        setActiveChatContent(updatedContentWithUserTurn);
+    
         try {
             const formData = new FormData();
             formData.append("apiKey", apiKey);
@@ -459,57 +462,62 @@ export default function App() {
             formData.append("model", model);
             formData.append("refinerModel", config.refinerModel);
             currentFiles.forEach(file => formData.append("files", file));
-
+    
             const response = await fetch(`${config.backendUrl}/api/generate`, {
-                method: "POST", headers: { 'ngrok-skip-browser-warning': 'true' }, body: formData
+                method: "POST",
+                headers: { 'ngrok-skip-browser-warning': 'true' },
+                body: formData
             });
-
+    
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "An unknown server error occurred");
+                const errorText = await response.json().catch(() => response.text());
+                throw new Error(JSON.stringify(errorText) || "An unknown server error occurred");
             }
-
+    
             const responseParts: ResponsePart[] = await response.json();
             const aiTurn: ConversationTurn = {
-                type: 'ai', parts: responseParts, timestamp: new Date().toLocaleTimeString()
+                type: 'ai',
+                parts: responseParts,
+                timestamp: new Date().toLocaleTimeString()
             };
             
-            setActiveChatContent(prev => {
-                if (!prev) return null;
-                const updatedConversation = [...prev.conversation, aiTurn];
-
-                const handleSave = async () => {
-                    if (user && isInitialized) {
-                        let chatToSave = { ...prev, conversation: updatedConversation };
-                        
-                        if (chatToSave.id === LOCAL_CHAT_ID) {
-                            try {
-                                const newChatFile = await createNewChatFile(chatToSave.name);
-                                chatToSave.id = newChatFile.id;
-                                await saveChat(chatToSave);
-                                await refreshChats(newChatFile.id);
-                            } catch (e) {
-                                console.error("Failed to promote local chat to Drive:", e);
-                                setError("Could not save the new chat to Google Drive.");
-                            }
-                        } else {
-                            await saveChat(chatToSave);
-                        }
+            // Обновляем состояние с ответом AI
+            let finalChatContent: ChatContent = {
+                ...updatedContentWithUserTurn,
+                conversation: [...updatedContentWithUserTurn.conversation, aiTurn],
+                // Если это первое сообщение, используем его как название
+                name: updatedContentWithUserTurn.id === LOCAL_CHAT_ID && updatedContentWithUserTurn.conversation.length === 1 
+                      ? currentInput.substring(0, 50) || "New Chat"
+                      : updatedContentWithUserTurn.name,
+            };
+            
+            setActiveChatContent(finalChatContent);
+    
+            // Сохраняем на Google Drive, если пользователь авторизован
+            if (user && isInitialized) {
+                try {
+                    const savedChat = await saveOrUpdateChat(finalChatContent);
+                    // Если был создан новый чат, обновляем ID в стейте
+                    if (savedChat.id !== finalChatContent.id) {
+                        setActiveChatContent(savedChat);
+                        // Обновляем список чатов, чтобы новый чат появился сразу
+                        await refreshChats(savedChat.id);
                     }
-                };
-
-                handleSave();
-                
-                return { ...prev, conversation: updatedConversation };
-            });
-
+                } catch (saveError) {
+                    console.error("Failed to save chat:", saveError);
+                    setError("Could not save the chat to Google Drive.");
+                }
+            }
+    
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
             const errorTurn: ConversationTurn = {
-                type: 'ai', parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
+                type: 'ai',
+                parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
                 timestamp: new Date().toLocaleTimeString()
             };
             setActiveChatContent(prev => prev ? { ...prev, conversation: [...prev.conversation, errorTurn] } : null);
+            setError(`Request failed: ${message}`); // Показываем ошибку пользователю
         } finally {
             setIsLoading(false);
         }
@@ -648,9 +656,6 @@ export default function App() {
                                 <>
                                     <div className="flex justify-between items-center mb-4 pb-2 border-b dark:border-gray-700">
                                         <h2 className="text-lg font-semibold">Chat History</h2>
-                                        <button onClick={handleCreateNewChat} className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors" aria-label="New chat">
-                                            <PlusIcon />
-                                        </button>
                                     </div>
                                     <div className="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
                                         {chats.map((chat) => (
