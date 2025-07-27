@@ -1,0 +1,49 @@
+{
+  // Имя, которое будет отображаться для вашей конфигурации.
+  "name": "Gemini Gateway Dev Environment",
+
+  // Мы будем использовать стандартный образ Python 3.11 и добавим к нему Node.js.
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
+  },
+
+  // Автоматически пробрасываем порты для фронтенда и бэкенда.
+  "forwardPorts": [5173, 8000],
+
+  // Настраиваем поведение для проброшенных портов.
+  "portsAttributes": {
+    "5173": {
+      "label": "Frontend (Vite)",
+      "onAutoForward": "openPreview" // Автоматически открыть превью для фронтенда.
+    },
+    "8000": {
+      "label": "Backend (FastAPI)"
+    }
+  },
+
+  // CRITICAL: Эта команда автоматически выполнится ПОСЛЕ создания Codespace.
+  // Она установит все зависимости для Python и Node.js.
+  "postCreateCommand": "npm install && pip install -r backend/requirements.txt",
+
+  // Настройки для VS Code внутри Codespace.
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  },
+  
+  // Запускать от имени пользователя vscode, а не root.
+  "remoteUser": "vscode"
+}
