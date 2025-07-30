@@ -445,21 +445,110 @@ export default function App() {
     const handleFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
-        const zip = new JSZip();
+    
+        const fileList = Array.from(files);
         let folderName = "";
-        Array.from(files).forEach(file => {
-            const relativePath = (file as any).webkitRelativePath;
-            if (relativePath) {
-                if (!folderName) folderName = relativePath.split('/')[0];
-                zip.file(relativePath, file);
+        const gitignoreFile = fileList.find(f => (f as any).webkitRelativePath.endsWith('.gitignore'));
+        let ig = ignore();
+    
+        // 1. РАСШИРЕННЫЙ СПИСОК ИГНОРИРУЕМЫХ ФАЙЛОВ И ПАПОК
+        const defaultIgnore = [
+            // Системные и IDE файлы
+            '.DS_Store',
+            'Thumbs.db',
+            '.vscode/',
+            '.idea/',
+            '*.suo',
+            '*.ntvs*',
+            '*.njsproj',
+            '*.sln',
+            '*.sw?',
+    
+            // Логи
+            'npm-debug.log*',
+            'yarn-debug.log*',
+            'yarn-error.log*',
+            'pnpm-debug.log*',
+            '*.log',
+    
+            // Артефакты сборки и директории
+            'node_modules/',
+            'dist/',
+            'build/',
+            'out/',
+            'coverage/',
+            '.next/',
+            '.nuxt/',
+            
+            // Python-специфичные
+            '__pycache__/',
+            'venv/',
+            'env/',
+            '*.pyc',
+            '*.pyo',
+            '*.pyd',
+            '.pytest_cache/',
+            '.mypy_cache/',
+            '.ruff_cache/',
+            
+            // Файлы зависимостей
+            'package-lock.json',
+            'yarn.lock',
+            'pnpm-lock.yaml',
+            'poetry.lock',
+    
+            // Секреты и переменные окружения
+            '.env',
+            '.env.*',
+            '!/.env.example', // Не игнорировать примеры
+        ];
+        ig.add(defaultIgnore);
+    
+        if (gitignoreFile) {
+            try {
+                const gitignoreContent = await gitignoreFile.text();
+                ig.add(gitignoreContent);
+                console.log("Loaded rules from user's .gitignore");
+            } catch (err) {
+                console.error("Could not read .gitignore file, using defaults.", err);
             }
+        }
+    
+        const zip = new JSZip();
+    
+        // 2. Фильтруем файлы ПЕРЕД добавлением в архив
+        fileList.forEach(file => {
+            const relativePath = (file as any).webkitRelativePath;
+            if (!relativePath) return;
+    
+            if (!folderName) {
+                folderName = relativePath.split('/')[0];
+            }
+            
+            const universalPath = relativePath.replace(/\\/g, '/');
+            // Путь для проверки должен быть относительным от корня папки
+            const pathToTest = universalPath.includes('/') 
+                ? universalPath.substring(universalPath.indexOf('/') + 1)
+                : universalPath;
+            
+            if (ig.ignores(pathToTest)) {
+                console.log(`Ignoring: ${universalPath}`);
+                return; // Пропускаем файл
+            }
+            
+            zip.file(relativePath, file);
         });
+        
+        // 3. Создаем и добавляем zip-файл
         try {
             const zipBlob = await zip.generateAsync({ type: "blob" });
             const zipFile = new File([zipBlob], `${folderName || 'project'}.zip`, { type: "application/zip" });
             setAttachedFiles(prevFiles => [...prevFiles, zipFile]);
-        } catch (err) { console.error("Failed to create zip file", err); setError("Failed to process the folder.");
+        } catch (err) {
+            console.error("Failed to create zip file", err);
+            setError("Failed to process the folder.");
         }
+    
         if (e.target) e.target.value = "";
     };
     const handleCloneRepo = async (url: string) => {
