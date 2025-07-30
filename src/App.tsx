@@ -449,7 +449,7 @@ export default function App() {
         const fileList = Array.from(files);
         let folderName = "";
         const gitignoreFile = fileList.find(f => (f as any).webkitRelativePath.endsWith('.gitignore'));
-        let ig = ignore();
+        let ig = ignore(); // Теперь эта строка будет работать правильно
     
         // 1. РАСШИРЕННЫЙ СПИСОК ИГНОРИРУЕМЫХ ФАЙЛОВ И ПАПОК
         const defaultIgnore = [
@@ -526,14 +526,13 @@ export default function App() {
             }
             
             const universalPath = relativePath.replace(/\\/g, '/');
-            // Путь для проверки должен быть относительным от корня папки
             const pathToTest = universalPath.includes('/') 
                 ? universalPath.substring(universalPath.indexOf('/') + 1)
                 : universalPath;
             
             if (ig.ignores(pathToTest)) {
                 console.log(`Ignoring: ${universalPath}`);
-                return; // Пропускаем файл
+                return;
             }
             
             zip.file(relativePath, file);
