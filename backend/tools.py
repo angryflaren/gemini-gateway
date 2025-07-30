@@ -1,85 +1,77 @@
 import google.generativeai as genai
 
-# --- ИНСТРУМЕНТЫ ДЛЯ ЗАГОЛОВКОВ ---
-
-# 1. Главный заголовок документа (H1)
+# --- TOOLS FOR HEADERS ---
 make_title = genai.protos.FunctionDeclaration(
     name="make_title",
-    description="Создает главный заголовок верхнего уровня для всего ответа (эквивалент H1). Используется один раз в начале.",
+    description="Creates the main, top-level title for the entire response (like H1). Used once at the beginning.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Текст главного заголовка."),
-            "subtitle": genai.protos.Schema(type=genai.protos.Type.STRING, description="Опциональный подзаголовок или краткое описание.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The text of the main title."),
+            "subtitle": genai.protos.Schema(type=genai.protos.Type.STRING, description="An optional subtitle or short description.")
         },
         required=["content"]
     )
 )
 
-# 2. Основной заголовок секции (H2) - бывший make_heading
 make_heading = genai.protos.FunctionDeclaration(
     name="make_heading",
-    description="Создает основной заголовок для крупного раздела (эквивалент H2).",
+    description="Creates a main heading for a large section (like H2).",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Текст заголовка раздела.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The text of the section heading.")
         },
         required=["content"]
     )
 )
 
-# 3. Подзаголовок (H3)
 make_subheading = genai.protos.FunctionDeclaration(
     name="make_subheading",
-    description="Создает подзаголовок для вложенного подраздела (эквивалент H3).",
+    description="Creates a subheading for a smaller subsection (like H3).",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Текст подзаголовка.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The text of the subheading.")
         },
         required=["content"]
     )
 )
 
-# 4. Заголовок с аннотацией/тегом
 make_annotated_heading = genai.protos.FunctionDeclaration(
     name="make_annotated_heading",
-    description="Создает заголовок с коротким тегом или аннотацией для контекста (например, 'Секция 3 [Важно]').",
+    description="Creates a heading with a short tag or note for context (e.g., 'Section 3 [Important]').",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Основной текст заголовка."),
-            "tag": genai.protos.Schema(type=genai.protos.Type.STRING, description="Короткий тег, например 'Опционально', 'Важно', 'Пример'.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The main text of the heading."),
+            "tag": genai.protos.Schema(type=genai.protos.Type.STRING, description="A short tag, e.g., 'Optional', 'Important', 'Example'.")
         },
         required=["content", "tag"]
     )
 )
 
-# 5. Заголовок-цитата
 make_quote_heading = genai.protos.FunctionDeclaration(
     name="make_quote_heading",
-    description="Оформляет ключевую мысль или цитату как стилизованный заголовок-выноску.",
+    description="Formats a key idea or quote as a stylized callout heading.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Текст цитаты или ключевой мысли."),
-            "source": genai.protos.Schema(type=genai.protos.Type.STRING, description="Опциональный источник цитаты.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The text of the quote or key idea."),
+            "source": genai.protos.Schema(type=genai.protos.Type.STRING, description="The optional source of the quote.")
         },
         required=["content"]
     )
 )
 
-
-# --- Стандартные инструменты для контента ---
-
+# --- Standard Content Tools ---
 make_text = genai.protos.FunctionDeclaration(
     name="make_text",
-    description="Создает обычный текстовый блок.",
+    description="Creates a normal text block.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Содержимое текстового блока.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The content of the text block.")
         },
         required=["content"]
     )
@@ -87,12 +79,12 @@ make_text = genai.protos.FunctionDeclaration(
 
 make_code = genai.protos.FunctionDeclaration(
     name="make_code",
-    description="Создает блок с кодом.",
+    description="Creates a block with code.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "language": genai.protos.Schema(type=genai.protos.Type.STRING, description="Язык программирования."),
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Фрагмент кода.")
+            "language": genai.protos.Schema(type=genai.protos.Type.STRING, description="The programming language."),
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The code snippet.")
         },
         required=["language", "content"]
     )
@@ -100,11 +92,11 @@ make_code = genai.protos.FunctionDeclaration(
 
 make_math = genai.protos.FunctionDeclaration(
     name="make_math",
-    description="Создает блок с математической формулой в формате LaTeX.",
+    description="Creates a block with a mathematical formula in LaTeX format.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
-            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Формула в синтаксисе LaTeX.")
+            "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="The formula in LaTeX syntax.")
         },
         required=["content"]
     )
@@ -112,27 +104,24 @@ make_math = genai.protos.FunctionDeclaration(
 
 make_list = genai.protos.FunctionDeclaration(
     name="make_list",
-    description="Создает маркированный или нумерованный список.",
+    description="Creates a bulleted or numbered list.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
             "items": genai.protos.Schema(
                 type=genai.protos.Type.ARRAY,
                 items=genai.protos.Schema(type=genai.protos.Type.STRING),
-                description="Массив строк, представляющих элементы списка."
+                description="An array of strings, where each string is a list item."
             )
         },
         required=["items"]
     )
 )
 
-
-# --- ОБНОВЛЕННЫЙ ГЛАВНЫЙ ИНСТРУМЕНТ ---
-# Этот инструмент-контейнер теперь знает о всех вариантах заголовков
-
+# --- UPDATED MAIN TOOL ---
 generate_structured_response = genai.protos.FunctionDeclaration(
     name="generate_structured_response",
-    description="Формирует полный структурированный ответ, состоящий из различных блоков контента. Используй разные типы заголовков для лучшей структуры.",
+    description="Forms a complete, structured response made of different content blocks. Use different heading types for better structure. This is the best tool for most answers.",
     parameters=genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
         properties={
@@ -140,18 +129,16 @@ generate_structured_response = genai.protos.FunctionDeclaration(
                 type=genai.protos.Type.ARRAY,
                 items=genai.protos.Schema(
                     type=genai.protos.Type.OBJECT,
-                     properties={
-                        "type": genai.protos.Schema(type=genai.protos.Type.STRING, description="Тип блока: 'title', 'heading', 'subheading', 'annotated_heading', 'quote_heading', 'text', 'code', 'math', или 'list'"),
-                        # --- Общие поля ---
-                        "content": genai.protos.Schema(type=genai.protos.Type.STRING, description="Основное содержимое для большинства блоков."),
-                        # --- Специализированные поля ---
-                        "subtitle": genai.protos.Schema(type=genai.protos.Type.STRING, description="Подзаголовок для блока 'title'."),
-                        "tag": genai.protos.Schema(type=genai.protos.Type.STRING, description="Тег для блока 'annotated_heading'."),
-                        "source": genai.protos.Schema(type=genai.protos.Type.STRING, description="Источник для 'quote_heading'."),
-                        "language": genai.protos.Schema(type=genai.protos.Type.STRING, description="Язык для блока 'code'."),
-                        "items": genai.protos.Schema(type=genai.protos.Type.ARRAY, items=genai.protos.Schema(type=genai.protos.Type.STRING), description="Элементы для блока 'list'.")
+                    properties={
+                        "type": genai.protos.Schema(type=genai.protos.Type.STRING, enum=['title', 'heading', 'subheading', 'annotated_heading', 'quote_heading', 'text', 'code', 'math', 'list']),
+                        "content": genai.protos.Schema(type=genai.protos.Type.STRING),
+                        "subtitle": genai.protos.Schema(type=genai.protos.Type.STRING),
+                        "tag": genai.protos.Schema(type=genai.protos.Type.STRING),
+                        "source": genai.protos.Schema(type=genai.protos.Type.STRING),
+                        "language": genai.protos.Schema(type=genai.protos.Type.STRING),
+                        "items": genai.protos.Schema(type=genai.protos.Type.ARRAY, items=genai.protos.Schema(type=genai.protos.Type.STRING))
                     },
-                    required=["type"] # Только 'type' является обязательным для всех
+                    required=["type"]
                 )
             )
         },
@@ -159,9 +146,13 @@ generate_structured_response = genai.protos.FunctionDeclaration(
     )
 )
 
-# Собираем ВСЕ инструменты в один набор
-# Хотя мы в основном будем использовать `generate_structured_response`,
-# предоставление всех инструментов помогает модели лучше понять доступные опции.
+# NEW: A list of all "simple" tools for easy checking in main.py
+ALL_TOOL_NAMES = [
+    "make_title", "make_heading", "make_subheading", "make_annotated_heading",
+    "make_quote_heading", "make_text", "make_code", "make_math", "make_list"
+]
+
+# Collect ALL tools into one set
 response_tools = genai.protos.Tool(
     function_declarations=[
         make_title,

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import "katex/dist/katex.min.css";
 import { BlockMath } from "react-katex";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -11,10 +11,10 @@ import JSZip from 'jszip';
 
 import { config } from "./config";
 import { ResponsePart, ConversationTurn, Chat, ChatContent, UserProfile } from "./types";
-import { listChats, getChatContent, saveOrUpdateChat, renameChatFile } from "./services/googleDrive";
+import { listChats, getChatContent, saveOrUpdateChat, renameChatFile, deleteChat } from "./services/googleDrive";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
-// --- ИКОНКИ ---
+// --- ICON COMPONENTS (no changes) ---
 const GemIcon = ({ className = "w-6 h-6" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const PaperclipIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.44 11.05L12.39 19.64C11.11 20.87 9.07 21.01 7.64 19.93C6.21 18.85 6.04 16.86 7.27 15.58L15.86 6.53C16.65 5.74 17.91 5.74 18.7 6.53C19.49 7.32 19.49 8.58 18.7 9.37L10.11 18.42C9.67 18.86 9.01 19.03 8.38 18.85C7.75 18.67 7.23 18.16 7.05 17.53C6.87 16.9 7.04 16.24 7.48 15.8L16.03 6.75C17.26 5.47 19.3 5.33 20.38 6.41C21.46 7.49 21.6 9.53 20.32 10.81L11.27 19.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const FolderIcon = ({ className = "w-5 h-5" }) => (<svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 10H12L10 8H2C1.45 8 1 8.45 1 9V19C1 19.55 1.45 20 2 20H22C22.55 20 23 19.55 23 19V11C23 10.45 22.55 10 22 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>);
@@ -27,14 +27,14 @@ const FileIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor
 const FolderIconForAttachment = () => (<svg viewBox="0 0 24 24" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"></path> </svg>);
 const GithubIconForAttachment = () => (<svg viewBox="0 0 16 16" fill="currentColor" height="1em" width="1em" className="inline-block mr-2 flex-shrink-0"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path> </svg>);
 const EditIcon = ({ className = "w-4 h-4" }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>);
+const TrashIcon = ({ className = "w-4 h-4" }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>);
+// --- HELPER COMPONENTS ---
 
-// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void }) => {
     const isRepo = file.name.startsWith('gh_repo:::');
     const isFolder = file.name.endsWith('.zip');
     let displayName: string = file.name;
     let Icon = FileIconForAttachment;
-
     if (isRepo) {
         displayName = file.name.replace('gh_repo:::', '').replace('_context.txt', '').replace(/---/g, '/');
         Icon = GithubIconForAttachment;
@@ -52,11 +52,14 @@ const AttachmentChip = ({ file, onRemove }: { file: File, onRemove?: () => void 
     );
 };
 
-// Новый компонент для рендеринга текста с формулами
+// FIXED: Added remarkMath and rehypeKatex plugins for ReactMarkdown
 const ContentRenderer = React.memo(({ content }: { content: string }) => {
-    const markdownPlugins = [remarkGfm];
-    
-    const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
+    const safeContent = typeof content === 'string' ? content : '';
+    const markdownPlugins = [remarkGfm, remarkMath]; // Added remarkMath
+    const htmlPlugins = [rehypeKatex]; // Added rehypeKatex
+
+    // Splitting for block math, as before. This ensures BlockMath is always used for $$...$$
+    const parts = safeContent.split(/(\$\$[\s\S]*?\$\$)/g);
 
     return (
         <div className="leading-relaxed break-words prose dark:prose-invert max-w-none">
@@ -69,7 +72,8 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
                         return <pre key={index} className="text-red-400 bg-red-900/20 p-2 rounded">Invalid LaTeX: {mathContent}</pre>
                     }
                 } else if (part) {
-                    return <ReactMarkdown key={index} remarkPlugins={markdownPlugins}>{part}</ReactMarkdown>;
+                    return <ReactMarkdown key={index} remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part}</ReactMarkdown>;
+                // Passing rehypePlugins
                 }
                 return null;
             })}
@@ -77,8 +81,9 @@ const ContentRenderer = React.memo(({ content }: { content: string }) => {
     );
 });
 
-
-const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; isDarkMode: boolean }) => {
+// FIXED: Added "safety" checks for each block type.
+// Now the component won't crash if incomplete data comes from the backend.
+const ResponseBlock = React.memo(({ part }: { part: ResponsePart }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = (contentToCopy: string) => {
         if (typeof contentToCopy !== 'string') return;
@@ -92,15 +97,26 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
     const htmlPlugins = [rehypeKatex];
 
     switch (part.type) {
-        case 'title': return (<div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4"><h1 className="text-4xl font-bold break-words title"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h1>{part.subtitle && <p className="text-lg mt-1 subtitle"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown></p>}</div>);
-        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h2>;
-        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown></h3>;
-        case 'annotated_heading': return (<div className="flex items-center gap-3 pt-4"><h4 className="text-lg font-semibold break-words">{part.content}</h4><span className="info-tag">{part.tag}</span></div>);
+        case 'title': return (
+            <div className="border-b-2 border-sky-500 dark:border-sky-400 pb-3 mb-4">
+                <h1 className="text-4xl font-bold break-words title">
+                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content || ''}</ReactMarkdown>
+                </h1>
+                {part.subtitle && 
+                    <div className="text-lg mt-1 subtitle">
+                        <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.subtitle}</ReactMarkdown>
+                    </div>
+                }
+            </div>
+        );
+        case 'heading': return <h2 className="text-2xl font-bold border-b dark:border-slate-700 pb-2 pt-4 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content || ''}</ReactMarkdown></h2>;
+        case 'subheading': return <h3 className="text-xl font-semibold pt-3 break-words"><ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content || ''}</ReactMarkdown></h3>;
+        case 'annotated_heading': return (<div className="flex items-center gap-3 pt-4"><h4 className="text-lg font-semibold break-words">{part.content || ''}</h4><span className="info-tag">{part.tag || ''}</span></div>);
         case 'quote_heading': return (
             <blockquote className="my-4 border-l-4 p-4 rounded-r-lg quote-heading-container">
-                <p className="text-lg font-medium italic quote-text">
-                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content}</ReactMarkdown>
-                </p>
+                <div className="text-lg font-medium italic quote-text">
+                    <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>{part.content || ''}</ReactMarkdown>
+                </div>
                 {part.source && (
                     <footer className="block text-right text-sm mt-2 not-italic quote-cite">
                         — <cite>{part.source}</cite>
@@ -108,28 +124,37 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
                 )}
             </blockquote>
         );
-        case 'text': return <ContentRenderer content={part.content} />;
+        case 'text': return <ContentRenderer content={part.content || ''} />;
         case 'code':
-            const codeContent = String(part.content || '');
+            const codeContent = String(part.content || '').trim();
+            if (!codeContent) {
+                return (
+                    <div className="relative group my-4 rounded-md bg-yellow-200 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 p-4 text-sm">
+                        <p><b>[Empty Response]</b> The AI returned an empty code block.</p>
+                    </div>
+                );
+            }
             return (
-                <div className="relative group my-4 rounded-md bg-gray-200 dark:bg-[#282c34] overflow-x-auto">
+                <div className="relative group my-4 rounded-md bg-[#282c34] overflow-x-auto">
                     <button onClick={() => handleCopy(codeContent)} className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/60" aria-label="Copy code">{copied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}</button>
-                    <SyntaxHighlighter language={part.language === 'error' ? 'bash' : part.language} style={isDarkMode ? oneDark : oneLight} showLineNumbers customStyle={{
-                        margin: 0,
-                        padding: '1rem',
-                        paddingTop: '1rem',
-                        backgroundColor: 'transparent'
-                    }}>{codeContent}</SyntaxHighlighter>
+                    <SyntaxHighlighter 
+                        language={part.language === 'error' ? 'bash' : (part.language || 'text')} 
+                        style={oneDark}
+                        showLineNumbers 
+                        customStyle={{ margin: 0, padding: '1rem', paddingTop: '1rem' }}
+                    >
+                        {codeContent}
+                    </SyntaxHighlighter>
                 </div>
             );
-        case 'math': return <BlockMath math={part.content} />;
+        case 'math': return <BlockMath math={part.content || ''} />;
         case 'list':
           return (
             <ul className="list-disc pl-6 space-y-2 prose dark:prose-invert max-w-none">
               {Array.isArray(part.items) && part.items.map((item, i) => (
                 <li key={i}>
                   <ReactMarkdown remarkPlugins={markdownPlugins} rehypePlugins={htmlPlugins}>
-                    {item}
+                      {item || ''}
                   </ReactMarkdown>
                 </li>
               ))}
@@ -137,7 +162,7 @@ const ResponseBlock = React.memo(({ part, isDarkMode }: { part: ResponsePart; is
           );
         default:
             const unknownPart = part as any;
-            return (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong className="font-bold">Unknown Block Type!</strong><span className="block sm:inline"> An unknown block type '{unknownPart?.type}' was received.</span><pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre></div>);
+            return (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong className="font-bold">Unknown block type!</strong><span className="block sm:inline"> Received an unknown block type '{unknownPart?.type}'.</span><pre className="mt-2 text-xs">{JSON.stringify(unknownPart, null, 2)}</pre></div>);
     }
 });
 
@@ -207,36 +232,29 @@ const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: Us
             {isLoading ? <SpinnerIcon /> : <GoogleIcon />}
         </button>
     );
-}
+};
 
-// --- КОНСТАНТА И ХЕЛПЕР ДЛЯ ЛОКАЛЬНОЙ СЕССИИ ---
 const LOCAL_CHAT_ID = "local-session";
 const createLocalChat = (): ChatContent => ({
     id: LOCAL_CHAT_ID,
     name: "New Chat",
     conversation: [],
 });
-
-// --- ОСНОВНОЙ КОМПОНЕНТ APP ---
 export default function App() {
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [apiKey, setApiKey] = useState("");
     const [model, setModel] = useState(config.models[0].id);
     const [inputText, setInputText] = useState("");
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-    
     const [isLoading, setIsLoading] = useState(false);
-    const [isContentLoading, setIsContentLoading] = useState(false);
+    const [isContentLoading, setIsContentLoading] = useState(false); // For loading active chat content
     
     const [error, setError] = useState<string | null>(null);
-
     const { user, signIn, signOut, isInitialized, isLoading: isAuthLoading } = useGoogleAuth();
 
     const [chats, setChats] = useState<Chat[]>([]);
-    
     const [activeChatId, setActiveChatId] = useState<string | null>(LOCAL_CHAT_ID);
     const [activeChatContent, setActiveChatContent] = useState<ChatContent | null>(createLocalChat());
-    
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [editingChatName, setEditingChatName] = useState("");
 
@@ -248,24 +266,20 @@ export default function App() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
     const renameInputRef = useRef<HTMLInputElement>(null);
-
     const skipNextFetch = useRef(false);
 
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
     }, [isDarkMode]);
-
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
         }
     }, [activeChatContent?.conversation, isLoading]);
-
     const handleCreateNewChat = useCallback(() => {
         setActiveChatId(LOCAL_CHAT_ID);
-        setActiveChatContent(createLocalChat());
+        setActiveChatContent(createLocalChat()); // Immediately set a new local chat
     }, []);
-
     useEffect(() => {
         if (skipNextFetch.current) {
             skipNextFetch.current = false;
@@ -277,16 +291,21 @@ export default function App() {
                 if (activeChatContent?.id !== LOCAL_CHAT_ID) {
                     setActiveChatContent(createLocalChat());
                 }
+                setIsContentLoading(false); // Ensure loading state is false for local chat
                 return;
             }
 
             if (!user) {
-                handleCreateNewChat();
+                handleCreateNewChat(); // This implicitly sets activeChatId to LOCAL_CHAT_ID
+                setIsContentLoading(false);
                 return;
             }
 
+            // --- Change: Immediately clear content and show loading ---
+            setActiveChatContent(null); // Key change for immediate feedback
             setIsContentLoading(true);
             setError(null);
+
             try {
                 const chatContent = await getChatContent(activeChatId);
                 setActiveChatContent(chatContent);
@@ -300,7 +319,7 @@ export default function App() {
         };
         loadChatContent();
     }, [activeChatId, user, handleCreateNewChat]);
-
+    // Dependencies should be stable
 
     useEffect(() => {
         if (editingChatId && renameInputRef.current) {
@@ -308,23 +327,20 @@ export default function App() {
             renameInputRef.current.select();
         }
     }, [editingChatId]);
-    
     useEffect(() => {
         const init = async () => {
             if (user && isInitialized) {
-                setIsContentLoading(true);
+                setIsContentLoading(true); // Loading state for the chat list
                 try {
                     const chatList = await listChats();
                     setChats(chatList);
-                    if (activeChatId === LOCAL_CHAT_ID) {
-                        if (chatList.length > 0) {
-                            setActiveChatId(chatList[0].id);
-                        } else {
-                            handleCreateNewChat();
-                        }
+                    if (activeChatId === LOCAL_CHAT_ID && chatList.length > 0) {
+                        setActiveChatId(chatList[0].id);
+                    } else if (chatList.length === 0) {
+                        handleCreateNewChat();
                     }
                 } catch (err) {
-                    console.error("Failed to list chats on login:", err);
+                    console.error("Failed to get chat list on sign-in:", err);
                     setError("Could not load chats from Google Drive.");
                     setChats([]);
                     handleCreateNewChat();
@@ -338,18 +354,14 @@ export default function App() {
         };
         init();
     }, [user, isInitialized, handleCreateNewChat]);
-
-    
     const handleStartEditing = (chat: Chat) => {
         setEditingChatId(chat.id);
         setEditingChatName(chat.name);
     };
-
     const handleCancelEditing = () => {
         setEditingChatId(null);
         setEditingChatName("");
     };
-
     const handleRenameChat = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!editingChatId || !editingChatName.trim()) {
@@ -365,19 +377,17 @@ export default function App() {
 
         const newName = editingChatName.trim();
         const originalId = editingChatId;
-        
         setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: newName } : c));
         if (activeChatId === originalId) {
             setActiveChatContent(prev => prev ? { ...prev, name: newName } : null);
         }
         
         handleCancelEditing();
-
         try {
             await renameChatFile(originalId, newName);
         } catch (err) {
             console.error("Failed to rename chat:", err);
-            setError("Could not rename the chat. Reverting change.");
+            setError("Failed to rename the chat. Reverting changes.");
             if (originalChat) {
                 setChats(prev => prev.map(c => c.id === originalId ? { ...c, name: originalChat.name } : c));
                 if (activeChatId === originalId) {
@@ -386,20 +396,52 @@ export default function App() {
             }
         }
     };
-    
+    const handleDeleteChat = async (chatIdToDelete: string) => {
+        if (!user) {
+            setError("You must be logged in to delete chats.");
+            return;
+        }
+        
+        const originalChats = [...chats];
+        const chatToDeleteIndex = originalChats.findIndex(c => c.id === chatIdToDelete);
+        
+        // Optimistically update UI
+        setChats(prev => prev.filter(c => c.id !== chatIdToDelete));
+        if (activeChatId === chatIdToDelete) {
+            const newChats = originalChats.filter(c => c.id !== chatIdToDelete);
+            if (newChats.length > 0) {
+                // Try to select the next or previous chat
+                const nextIndex = chatToDeleteIndex >= newChats.length ? newChats.length - 1 : chatToDeleteIndex;
+                setActiveChatId(newChats[nextIndex].id);
+            } else {
+                handleCreateNewChat();
+            }
+        }
+
+        try {
+            await deleteChat(chatIdToDelete);
+        } catch (err) {
+            console.error("Failed to delete chat:", err);
+            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+            setError(`Failed to delete chat from Google Drive: ${errorMessage}. Chat list has been restored.`);
+            setChats(originalChats);
+            if (activeChatId !== chatIdToDelete) {
+                setActiveChatId(chatIdToDelete);
+            }
+        }
+    };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const filesToUpload = e.target.files ? Array.from(e.target.files) : [];
-        if (filesToUpload.length > 0) { setAttachedFiles(prevFiles => [...prevFiles, ...filesToUpload]); }
+        if (filesToUpload.length > 0) { setAttachedFiles(prevFiles => [...prevFiles, ...filesToUpload]);
+        }
         e.target.value = '';
     };
-
     const removeFile = (indexToRemove: number) => {
         setAttachedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
     };
 
     const handleUploadFileClick = () => fileInputRef.current?.click();
     const handleUploadFolderClick = () => folderInputRef.current?.click();
-    
     const handleFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -416,10 +458,10 @@ export default function App() {
             const zipBlob = await zip.generateAsync({ type: "blob" });
             const zipFile = new File([zipBlob], `${folderName || 'project'}.zip`, { type: "application/zip" });
             setAttachedFiles(prevFiles => [...prevFiles, zipFile]);
-        } catch (err) { console.error("Failed to create zip file", err); setError("Failed to process folder."); }
+        } catch (err) { console.error("Failed to create zip file", err); setError("Failed to process the folder.");
+        }
         if (e.target) e.target.value = "";
     };
-
     const handleCloneRepo = async (url: string) => {
         setIsCloning(true);
         setError(null);
@@ -439,7 +481,7 @@ export default function App() {
             setIsRepoModalOpen(false);
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
-            setError(`Clone failed: ${message}`);
+            setError(`Cloning Error: ${message}`);
         } finally {
             setIsCloning(false);
         }
@@ -447,21 +489,19 @@ export default function App() {
     
     const handleSubmit = async () => {
         if (!apiKey) {
-            alert("Please enter your Gemini API key.");
+            setError("Please enter your Gemini API key.");
             return;
         }
         if (!inputText.trim() || !activeChatContent) return;
     
         setIsLoading(true);
         setError(null);
-    
         const userTurn: ConversationTurn = {
             type: 'user',
             prompt: inputText,
             attachments: [],
             timestamp: new Date().toLocaleTimeString()
         };
-        
         const currentInput = inputText;
         const currentFiles = [...attachedFiles];
         setInputText("");
@@ -470,7 +510,7 @@ export default function App() {
         const isNewChat = activeChatContent.id === LOCAL_CHAT_ID;
         const updatedContentWithUserTurn: ChatContent = {
             ...activeChatContent,
-            name: isNewChat ? (currentInput.substring(0, 50).trim() || "Untitled Chat") : activeChatContent.name,
+            name: isNewChat ? (currentInput.substring(0, 40).trim() || "Untitled Chat") : activeChatContent.name,
             conversation: [...activeChatContent.conversation, userTurn],
         };
         setActiveChatContent(updatedContentWithUserTurn);
@@ -481,17 +521,20 @@ export default function App() {
             formData.append("prompt", currentInput);
             formData.append("model", model);
             formData.append("refinerModel", config.refinerModel);
-            currentFiles.forEach(file => formData.append("files", file));
-    
+            currentFiles.forEach(file => formData.append("files", file, file.name));
             const response = await fetch(`${config.backendUrl}/api/generate`, {
                 method: "POST",
                 headers: { 'ngrok-skip-browser-warning': 'true' },
                 body: formData
             });
-    
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(errorText || "An unknown server error occurred");
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.detail || "An unknown server error occurred");
+                } catch(e) {
+                    throw new Error(errorText || "An unknown server error occurred");
+                }
             }
     
             const responseParts: ResponsePart[] = await response.json();
@@ -500,12 +543,10 @@ export default function App() {
                 parts: responseParts,
                 timestamp: new Date().toLocaleTimeString()
             };
-            
             let finalChatContent = {
                 ...updatedContentWithUserTurn,
                 conversation: [...updatedContentWithUserTurn.conversation, aiTurn],
             };
-            
             if (user && isInitialized) {
                 try {
                     const savedChat = await saveOrUpdateChat(finalChatContent);
@@ -515,7 +556,6 @@ export default function App() {
                             name: savedChat.name, 
                             createdTime: new Date().toISOString() 
                         };
-                        
                         skipNextFetch.current = true;
                         
                         setChats(prev => [newChatItem, ...prev]);
@@ -528,7 +568,7 @@ export default function App() {
                 } catch (saveError) {
                     const message = saveError instanceof Error ? saveError.message : "An unknown error occurred.";
                     console.error("Failed to save chat:", saveError);
-                    setError(`Could not save the chat to Google Drive. Error: ${message}`);
+                    setError(`Could not save chat to Google Drive. Error: ${message}`);
                     setActiveChatContent(finalChatContent);
                 }
             } else {
@@ -539,7 +579,7 @@ export default function App() {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
             const errorTurn: ConversationTurn = {
                 type: 'ai',
-                parts: [{ type: 'code', language: 'error', content: `Request failed: ${message}` }],
+                parts: [{ type: 'code', language: 'error', content: `Request Error: ${message}` }],
                 timestamp: new Date().toLocaleTimeString()
             };
             setActiveChatContent(prev => prev ? { ...prev, conversation: [...prev.conversation, errorTurn] } : null);
@@ -547,12 +587,10 @@ export default function App() {
             setIsLoading(false);
         }
     };
-
     return (
         <>
             <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
             <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-
             <div className={`h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
                 <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-50/60 dark:bg-gray-900/60 backdrop-blur-md z-30">
                     <div className="flex items-center gap-2">
@@ -575,10 +613,9 @@ export default function App() {
                         />
                     </div>
                 </header>
-
                 <main className="max-w-7xl mx-auto grid flex-1 grid-cols-1 lg:grid-cols-4 gap-6 p-6 min-h-0">
                     <aside className="lg:col-span-1 flex flex-col gap-4">
-                        <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1`}>
+                        <div className={`p-6 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1 backdrop-blur-sm`}>
                             <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
                             <div className="space-y-4">
                                 <div>
@@ -595,43 +632,39 @@ export default function App() {
                                 </div>
                                 <div className="pt-2">
                                     <p className="text-xs text-gray-400 mb-2">This is a professional AI assistant for developers.</p>
-                                    <p className="text-xs text-gray-400">Connect your Gemini API key and start coding with the power of Google's most advanced models.</p>
+                                    <p className="text-xs text-gray-400">Connect your Gemini API key and start programming with Google's most advanced models.</p>
                                 </div>
                             </div>
                         </div>
                     </aside>
-
-                    <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"}`}>
+                    <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} backdrop-blur-sm`}>
                         <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                            {isContentLoading && (
+                            {isContentLoading && !activeChatContent && (
                                 <div className="flex items-center justify-center h-full">
                                     <SpinnerIcon className="w-8 h-8 text-slate-400" />
                                 </div>
                             )}
-
-                            {!isContentLoading && (activeChatContent?.conversation || []).length === 0 && !isLoading && (
+                            {(!isContentLoading || activeChatContent) && (activeChatContent?.conversation || []).length === 0 && !isLoading && !error && (
                                 <div className="flex flex-col items-center justify-center h-full text-center opacity-70">
                                     <GemIcon className="w-16 h-16 mb-4" />
-                                    <h3 className="text-lg font-medium mb-1">Start your conversation</h3>
-                                    <p className="text-sm max-w-md">Enter your prompt below. If you are logged into Google, your chat will be saved automatically.</p>
+                                    <h3 className="text-lg font-medium mb-1">Start the conversation</h3>
+                                    <p className="text-sm max-w-md">Enter your request below. If you are signed in, your chat will be saved automatically.</p>
                                 </div>
                             )}
-
                             {activeChatContent?.conversation.map((turn, index) => (
-                                <div key={index} className={`flex flex-col gap-2 ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
+                                <div key={index} className={`flex flex-col gap-2 chat-message-enter ${turn.type === 'user' ? 'items-end' : 'items-start'}`}>
                                     {turn.type === 'user' ? (
                                         <div className="user-bubble">
-                                            <ReactMarkdown className="prose dark:prose-invert max-w-none break-words" remarkPlugins={[remarkGfm]}>{turn.prompt}</ReactMarkdown>
+                                            <ReactMarkdown className="prose prose-invert max-w-none break-words" remarkPlugins={[remarkGfm]}>{turn.prompt}</ReactMarkdown>
                                         </div>
                                     ) : (
                                         <div className="ai-bubble">
-                                            {turn.parts.map((part, i) => <ResponseBlock key={i} part={part} isDarkMode={isDarkMode} />)}
+                                            {turn.parts.map((part, i) => <ResponseBlock key={i} part={part} />)}
                                         </div>
                                     )}
                                     <span className="text-xs text-gray-500 dark:text-gray-400 px-2">{turn.timestamp}</span>
                                 </div>
                             ))}
-
                             {isLoading && (
                                 <div className="flex items-start gap-3">
                                     <div className="ai-bubble opacity-80">
@@ -643,7 +676,6 @@ export default function App() {
                             )}
                             {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-lg">{error}</div>}
                         </div>
-
                         <div className="border-t border-gray-700/30 dark:border-gray-700 p-4 bg-gray-100/50 dark:bg-gray-900/50">
                             {attachedFiles.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-2">
@@ -655,12 +687,12 @@ export default function App() {
                             <div className="flex items-center gap-2 mb-3">
                                 <button onClick={handleUploadFileClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach file"><PaperclipIcon /></button>
                                 <button onClick={handleUploadFolderClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach folder"><FolderIcon /></button>
-                                <button onClick={() => setIsRepoModalOpen(true)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach GitHub repo"><GithubIcon /></button>
+                                <button onClick={() => setIsRepoModalOpen(true)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Attach GitHub repository"><GithubIcon /></button>
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
-                                <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple webkitdirectory="" />
+                                <input type="file" ref={folderInputRef} onChange={handleFolderChange} className="hidden" multiple {...{ webkitdirectory: "" } as any} />
                             </div>
                             <div className="relative">
-                                <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Ask Gemini something..." rows={3}
+                                <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Ask Gemini anything..." rows={3}
                                     className={`w-full px-4 py-3 pr-24 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none ${isDarkMode ? "bg-gray-700/50 border-gray-600 focus:border-blue-500" : "bg-gray-50 border-gray-300 focus:border-blue-500"}`}
                                 />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
@@ -672,16 +704,15 @@ export default function App() {
                             </div>
                         </div>
                     </div>
-
                     <aside className="lg:col-span-1 flex flex-col gap-4">
-                        <div className={`p-4 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} flex-1 flex flex-col`}>
+                        <div className={`p-4 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-gray-800/60" : "bg-white/60"} backdrop-blur-sm flex-1 flex flex-col`}>
                             {isAuthLoading ? (
                                 <div className="flex-1 flex items-center justify-center"><SpinnerIcon className="w-8 h-8" /></div>
                             ) : user ? (
-                                <>
+                                <> 
                                     <div className="flex justify-between items-center mb-4 pb-2 border-b dark:border-gray-700">
                                         <h2 className="text-lg font-semibold">Chat History</h2>
-                                        <button onClick={handleCreateNewChat} className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors" aria-label="New chat">
+                                        <button onClick={handleCreateNewChat} className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors" aria-label="New Chat">
                                             <PlusIcon />
                                         </button>
                                     </div>
@@ -709,15 +740,25 @@ export default function App() {
                                                     </form>
                                                 ) : (
                                                     <>
-                                                        <p className="font-medium truncate pr-6">{chat.name}</p>
+                                                        <p className="font-medium truncate pr-16">{chat.name}</p>
                                                         <p className="text-xs opacity-70 mt-1">{new Date(chat.createdTime).toLocaleString()}</p>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleStartEditing(chat); }}
-                                                            className="absolute top-1/2 right-2 -translate-y-1/2 p-1 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-gray-500/30 transition-opacity"
-                                                            aria-label="Rename chat"
-                                                        >
-                                                            <EditIcon className="w-4 h-4 text-slate-400" />
-                                                        </button>
+                                                        
+                                                        <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleStartEditing(chat); }}
+                                                                className="p-1 rounded-md hover:bg-gray-500/30 transition-opacity"
+                                                                aria-label="Rename chat"
+                                                            >
+                                                                <EditIcon className="w-4 h-4 text-slate-400" />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id); }}
+                                                                className="p-1 rounded-md hover:bg-red-500/40 transition-opacity"
+                                                                aria-label="Delete chat"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4 text-red-400" />
+                                                            </button>
+                                                        </div>
                                                     </>
                                                 )}
                                             </div>
@@ -729,9 +770,9 @@ export default function App() {
                                     <GoogleIcon className="w-12 h-12 mb-4" />
                                     <h3 className="text-lg font-medium mb-1">Save your chats</h3>
                                     <p className="text-sm max-w-md">
-                                        Sign in with your Google Account to automatically save and sync your chat history to Google Drive.
+                                        Sign in with your Google account to automatically save and sync your chat history with Google Drive.
                                     </p>
-                                    <button onClick={signIn} className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                                    <button onClick={signIn} disabled={!isInitialized || isAuthLoading} className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50">
                                         Sign in with Google
                                     </button>
                                 </div>
@@ -739,7 +780,6 @@ export default function App() {
                         </div>
                     </aside>
                 </main>
-
                 <footer className="mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500">
                     <p>© 2025 Gemini Gateway Studio — Powered by Google AI</p>
                 </footer>

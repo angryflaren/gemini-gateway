@@ -1,4 +1,4 @@
-// --- Типы для ответов AI (из старого App.tsx) ---
+// --- Types for AI responses (from the old App.tsx) ---
 interface TitlePart { type: 'title'; content: string; subtitle?: string; }
 interface HeadingPart { type: 'heading'; content: string; }
 interface SubheadingPart { type: 'subheading'; content: string; }
@@ -13,11 +13,11 @@ export type ResponsePart =
   | TitlePart | HeadingPart | SubheadingPart | AnnotatedHeadingPart
   | QuoteHeadingPart | TextPart | CodePart | MathPart | ListPart;
 
-// --- Типы для структуры диалога ---
+// --- Types for the conversation structure ---
 interface UserTurn {
   type: 'user';
   prompt: string;
-  attachments: { name: string; type: string; content: string }[]; // Содержимое файла как base64
+  attachments: { name: string; type: string; content: string }[]; // File content as base64
   timestamp: string;
 }
 
@@ -29,7 +29,7 @@ interface AITurn {
 
 export type ConversationTurn = UserTurn | AITurn;
 
-// --- Типы для чатов на Google Drive ---
+// --- Types for chats on Google Drive ---
 export interface Chat {
   id: string;
   name: string;
@@ -42,7 +42,7 @@ export interface ChatContent {
   conversation: ConversationTurn[];
 }
 
-// --- Тип для профиля пользователя Google ---
+// --- Type for Google user profile ---
 export interface UserProfile {
   id: string;
   name: string;

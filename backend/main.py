@@ -14,8 +14,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Импортируем наш набор инструментов из tools.py
-from tools import response_tools
+# import our toolset from tools.py
+from tools import response_tools, ALL_TOOL_NAMES
 
 # --- FastAPI App Initialization & CORS ---
 app = FastAPI()
@@ -25,6 +25,7 @@ origins = [
     "http://127.0.0.1:5173",
     "https://angryflaren.github.io",
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,23 +42,17 @@ class RepoRequest(BaseModel):
 # --- Helper Functions ---
 
 def recursive_to_dict(obj: Any) -> Any:
-    """
-    Рекурсивно преобразует вложенные объекты Google API (MapComposite, ListComposite)
-    в стандартные словари и списки Python.
-    Это необходимо для корректной JSON-сериализации в FastAPI.
-    """
+    # FIXED: Added a check for None to avoid errors
+    if obj is None:
+        return None
     if hasattr(obj, 'items'):
-        # Если объект похож на словарь (имеет метод .items())
         return {key: recursive_to_dict(value) for key, value in obj.items()}
     elif isinstance(obj, (list, tuple)) or (hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes))):
-        # Если объект похож на список/кортеж (итерируемый, но не строка/байты)
         return [recursive_to_dict(item) for item in obj]
     else:
-        # Возвращаем примитивные типы как есть
         return obj
 
 def load_system_prompt():
-    """Загружает системный промпт из файла prompt.xml."""
     try:
         with open("prompt.xml", "r", encoding="utf-8") as f:
             return f.read()
@@ -66,7 +61,6 @@ def load_system_prompt():
         return "You are a helpful programming assistant."
 
 def process_repository_to_text(repo_path_str: str) -> str:
-    # Эта функция без изменений
     repo_path = Path(repo_path_str)
     output_parts = []
     default_ignore = [
@@ -102,27 +96,26 @@ def process_repository_to_text(repo_path_str: str) -> str:
 
 
 async def refine_prompt_for_coding(api_key: str, user_prompt: str, refiner_model_id: str) -> str:
-    # Эта функция без изменений
     if len(user_prompt.strip()) < 2:
         return user_prompt
     refiner_system_prompt = """
-# System Prompt: Strategic Query Architect
+# System Prompt: Smart Query Builder
 # Role
-You are a Strategic Query Architect. Your function is to intercept a raw user query and re-engineer it into a master-level instruction set for a downstream "Gemini Architect" AI model. Your transformation must not only preserve the user's original intent but elevate it, compelling the downstream AI to deliver solutions of the highest possible quality in terms of correctness, architecture, security, and clarity.
-# CRITICAL DIRECTIVES
-- **Semantic Isomorphism (Top Priority):** The rewritten query MUST be a perfect semantic mirror of the input's core intent. Preserve all explicit technical terms and constraints. No information loss is permitted.
-- **Language Parity:** The output language MUST strictly match the input language. Do not translate.
-- **Intent-Driven Amplification (Key Mandate):**
-  - **Infer the True Goal:** Analyze the user's query to understand their ultimate objective, not just their literal question.
-  - **Elevate the Request:** If the query is simple (e.g., "how to do X"), transform it into a request for a **production-ready, robust, and well-documented solution**.
-  - **Demand Deeper Analysis:** If the query involves code, rewrite it to explicitly demand that the downstream AI analyze **scalability, security vulnerabilities, edge cases, and architectural best practices**.
-- **Maintain Proportionality:** If the query is clearly seeking a brief, factual answer (e.g., "what is the syntax for a for-loop in Python?"), provide a clean, direct question. Do not over-amplify trivial requests.
-- **Atomic Output:** Your output MUST BE ONLY the rewritten query text. No explanations, no apologies, no conversational text, no markdown.
-- **Passthrough Protocol:** If the input is non-technical, purely conversational, or too vague to architect (e.g., "привет", "спасибо"), return it completely unchanged.
-# Internal Process
-1.  **Deconstruct & Infer:** Break down the user's query and deduce their true intent.
-2.  **Architect the New Query:** Based on the inferred intent, construct a new, superior query. Frame it as a set of instructions for an expert-level AI. Explicitly include prompts for self-correction, consideration of alternatives, and detailed justifications.
-3.  **Final Polish:** Ensure the final query is clean, precise, and ready for the downstream model.
+You are a Smart Query Builder. Your job is to take a user's question and make it better. The new question should be a perfect instruction for another AI, the "Gemini Architect". Your new question must keep the user's idea. But it should also make it better, so the other AI gives a very good answer. The answer should be correct, secure, and clear.
+# VERY IMPORTANT RULES
+- **Keep the Meaning (Top Priority):** The new question MUST mean the same thing as the user's question. Keep all special words and rules. Do not lose any information.
+- **Same Language:** The output language MUST be the same as the input language. Do not translate.
+- **Make the Idea Better (Main Job):**
+  - **Find the Real Goal:** Look at the user's question to understand what they really want to do.
+  - **Improve the Request:** If the question is simple (like "how to do X"), change it to ask for a solution that is ready for real use, strong, and has good explanations.
+  - **Ask for More Details:** If the question is about code, change it to ask the AI to check for security problems, special cases, and good ways to build the code.
+  - **Keep it Simple for Simple Questions:** If the user asks a small, easy question (like "what is a for-loop in Python?"), just make the question clean and direct. Do not make small questions too big.
+- **Only the New Question:** Your output MUST BE only the new question text. No "hello", no "sorry", no extra words, no markdown.
+- **Do Nothing Protocol:** If the question is not about tech, is just talking, or is not clear (like "hello", "thank you"), return it exactly as it is.
+# Your Process
+1.  **Understand:** Read the user's question and find their real goal.
+2.  **Build the New Question:** Make a new, better question. Write it like instructions for an expert AI. Tell it to check its work and explain why it chose its solution.
+3.  **Final Check:** Make sure the new question is clean, clear, and ready for the next AI model.
 """
     try:
         genai.configure(api_key=api_key)
@@ -139,7 +132,6 @@ You are a Strategic Query Architect. Your function is to intercept a raw user qu
 # --- API Endpoints ---
 @app.post("/api/clone_repo")
 async def clone_repo(repo_request: RepoRequest):
-    # Этот эндпоинт без изменений
     with tempfile.TemporaryDirectory() as temp_dir:
         repo_url = repo_request.url
         match = re.search(r"github\.com/([^/]+/[^/]+?)(?:\.git|/tree/([^/]+)|/*$)", repo_url)
@@ -172,38 +164,52 @@ async def generate_response(
     refinerModel: str = Form(...),
     files: List[UploadFile] = File(default=[])
 ):
-    print(f"Received request for model: {model} with {len(files)} files.")
-    
     system_prompt = load_system_prompt()
     prompt_parts: List[Any] = [system_prompt]
     
-    print(f"Refining user prompt: '{prompt}'")
     refined_prompt = await refine_prompt_for_coding(apiKey, prompt, refinerModel)
-    print(f"Refined prompt: '{refined_prompt}'")
     prompt_parts.append(f"\n\nUser Request: {refined_prompt}\n\n")
 
     for file in files:
         contents = await file.read()
-        supported_image_types = ["image/png", "image/jpeg", "image/webp"]
-        supported_text_types = ["text/plain", "text/xml", "application/json", "text/javascript", "text/css", "text/html", "text/x-python"]
-        supported_zip_types = ["application/zip", "application/x-zip-compressed"]
+        filename = file.filename
         
-        if file.content_type in supported_zip_types:
+        if filename.endswith('.zip'):
             with tempfile.TemporaryDirectory() as temp_dir:
-                zip_path = os.path.join(temp_dir, file.filename or "repo.zip")
-                with open(zip_path, "wb") as f: f.write(contents)
-                extract_path = os.path.join(temp_dir, "unzipped_repo")
-                os.makedirs(extract_path, exist_ok=True)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref: zip_ref.extractall(extract_path)
-                project_name = Path(file.filename).stem if file.filename else "project"
-                repo_as_text = process_repository_to_text(extract_path)
-                prompt_parts.append(f"--- Provided Repository: {project_name} ---\n{repo_as_text}\n--- End Repository: {project_name} ---")
-        elif file.content_type in supported_image_types:
-            prompt_parts.append({"mime_type": file.content_type, "data": contents})
-        elif file.content_type in supported_text_types:
-            prompt_parts.append(f"--- Provided File: {file.filename} ---\n```\n{contents.decode('utf-8')}\n```\n--- End File: {file.filename} ---")
+                zip_path = os.path.join(temp_dir, filename)
+                with open(zip_path, 'wb') as f:
+                    f.write(contents)
+                
+                unzip_dir = os.path.join(temp_dir, 'unzipped')
+                os.makedirs(unzip_dir, exist_ok=True)
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(unzip_dir)
+                
+                # FIXED: Improved logic for finding the root folder
+                # Instead of guessing, we find the common prefix for all files, which is much more reliable.
+                all_paths = [os.path.join(unzip_dir, f) for f in zip_ref.namelist() if not f.startswith('__MACOSX')]
+                if not all_paths:
+                     # If the archive is empty or contains only system folders
+                    processed_text = ""
+                else:
+                    # Find the common root path
+                    common_prefix = os.path.commonpath(all_paths)
+                    # If the common prefix is the extraction folder itself, use it.
+                    # If there is one common folder inside, use it.
+                    repo_content_path = common_prefix if os.path.isdir(common_prefix) else unzip_dir
+                    processed_text = process_repository_to_text(repo_content_path)
+
+                prompt_parts.append(f"--- Provided ZIP Content: {filename} ---\n{processed_text}\n--- End ZIP Content ---")
+
         else:
-            print(f"Skipping unsupported file type: {file.content_type}")
+            try:
+                # FIXED: Added decoding error handling
+                decoded_contents = contents.decode('utf-8')
+                prompt_parts.append(f"--- Provided File: {filename} ---\n```\n{decoded_contents}\n```\n--- End File: {filename} ---")
+            except UnicodeDecodeError:
+                prompt_parts.append(f"--- Provided File: {filename} ---\n[Binary file, content not displayed]\n--- End File: {filename} ---")
+
+        
         await file.close()
 
     try:
@@ -222,41 +228,73 @@ async def generate_response(
         part = response.candidates[0].content.parts[0]
         
         if not hasattr(part, 'function_call') or not part.function_call.name:
-            error_text = response.text if hasattr(response, 'text') else "Model did not call a function."
-            return [{"type": "text", "content": f"AI did not return the expected function call. Response: {error_text}"}]
+            if hasattr(response, 'text') and response.text:
+                return [{"type": "text", "content": response.text}]
+            return [{"type": "text", "content": "Error: Model returned an empty response without a function call."}]
 
-        if part.function_call.name != "generate_structured_response":
-            return [{"type": "text", "content": f"AI called an unexpected function: {part.function_call.name}"}]
+        final_parts = []
+        function_name = part.function_call.name
+        function_args = recursive_to_dict(part.function_call.args)
 
-        args = part.function_call.args
+        if function_name == "generate_structured_response":
+            # FIXED: We now check each block inside 'parts'
+            raw_parts = function_args.get('parts', [])
+            if isinstance(raw_parts, list):
+                for p in raw_parts:
+                    # We check that 'p' is a dictionary and has a 'type' key
+                    if isinstance(p, dict) and 'type' in p:
+                        final_parts.append(p)
+                    else:
+                        print(f"Warning: Skipping malformed part in structured response: {p}")
+            else:
+                 print(f"Warning: 'parts' in structured response is not a list: {raw_parts}")
+
+        elif function_name in ALL_TOOL_NAMES:
+            # FIXED: Added basic validation for simple tools
+            block_type = function_name.replace('make_', '')
+            is_valid = True
+            if block_type == 'list' and not isinstance(function_args.get('items'), list):
+                is_valid = False
+            elif 'content' not in function_args: # Most other tools require 'content'
+                is_valid = False
+
+            if is_valid:
+                new_part = {"type": block_type, **function_args}
+                final_parts.append(new_part)
+            else:
+                print(f"Warning: AI called function '{function_name}' with invalid args: {function_args}")
+        else:
+            return [{"type": "code", "language": "error", "content": f"AI called an unexpected function: {function_name}\n\nArguments: {json.dumps(function_args, indent=2)}"}]
         
-        if not args or 'parts' not in args:
-             return [{"type": "text", "content": "AI response is missing the 'parts' field."}]
-
-        py_response = recursive_to_dict(args)
+        if not final_parts:
+            # FIXED: Return the original response text if nothing is left after processing
+            if hasattr(response, 'text') and response.text:
+                return [{"type": "text", "content": f"[Fallback Content]\n{response.text}"}]
+            return [{"type": "text", "content": "AI response was empty or malformed after processing the function call."}]
         
-        # НОВОЕ ИЗМЕНЕНИЕ: Фильтруем ответ, чтобы отправлять только поддерживаемые типы блоков.
-        # Это делает бэкенд устойчивым к новым типам блоков, которые может сгенерировать модель,
-        # но которые еще не поддерживаются фронтендом.
         supported_types = {'title', 'heading', 'subheading', 'annotated_heading', 'quote_heading', 'text', 'code', 'math', 'list'}
         filtered_parts = [
-            part for part in py_response.get('parts', [])
-            if isinstance(part, dict) and part.get('type') in supported_types
+            p for p in final_parts
+            if isinstance(p, dict) and p.get('type') in supported_types
         ]
 
-        # Проверяем, если после фильтрации ничего не осталось, а изначально что-то было.
-        if not filtered_parts and py_response.get('parts'):
-            print(f"Warning: AI returned only unsupported block types. Original parts: {py_response.get('parts')}")
-            # Отправляем понятное сообщение об ошибке на фронтенд.
+        if not filtered_parts and final_parts:
+            print(f"Warning: AI returned only unsupported block types. Original parts: {final_parts}")
+            # FIXED: Also added logic to fall back to the original text
+            if hasattr(response, 'text') and response.text:
+                return [{"type": "text", "content": f"[Fallback Content]\n{response.text}"}]
             return [{"type": "text", "content": "AI returned content in an unsupported format that cannot be displayed."}]
 
-        # Возвращаем только отфильтрованный, "чистый" список словарей.
         return filtered_parts
 
     except google_exceptions.InvalidArgument as e:
         raise HTTPException(status_code=400, detail=f"Invalid argument to API. Details: {e}")
+    # FIXED: Added catching for InternalServerError for a more informative message
+    except google_exceptions.InternalServerError as e:
+        error_content = f"Google API Error (500): The server encountered an internal error. This often happens if the AI model tries to generate a malformed response. Please try modifying your prompt or reducing the amount of context. Details: {e}"
+        print(error_content)
+        return [{"type": "code", "language": "error", "content": error_content}]
     except Exception as e:
-        # Добавляем вывод полного traceback для лучшей диагностики
         import traceback
         error_content = f"CRITICAL: An error occurred during Gemini API call: {str(e)}\n{traceback.format_exc()}"
         print(error_content)

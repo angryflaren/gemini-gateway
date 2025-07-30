@@ -3,15 +3,15 @@
 import { Chat, ChatContent } from '../types';
 
 const APP_DATA_FOLDER = 'GeminiGatewayStudio_Chats';
-
 declare const gapi: any;
 
-const getAppFolderId = async (): Promise<string> => {
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const getAppFolderId = async (): Promise<string> => {
     const response = await gapi.client.drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${APP_DATA_FOLDER}'`,
         fields: 'files(id)',
     });
-
     if (response.result.files && response.result.files.length > 0) {
         return response.result.files[0].id!;
     } else {
@@ -47,16 +47,14 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             fileId: fileId,
             alt: 'media',
         });
-
         const content = response.body && response.body.length > 0 
             ? JSON.parse(response.body) 
             : { conversation: [] };
-        
+
         const fileDetails = await gapi.client.drive.files.get({
             fileId: fileId,
             fields: 'name'
         });
-
         return { 
             id: fileId, 
             name: fileDetails.result.name.replace('.json', ''),
@@ -71,7 +69,6 @@ export const getChatContent = async (fileId: string): Promise<ChatContent> => {
             fileId: fileId,
             fields: 'name'
         }).catch(() => ({ result: { name: 'Error Chat.json' }}));
-
         return {
             id: fileId,
             name: fileDetails.result.name.replace('.json', ''),
@@ -88,14 +85,44 @@ export const renameChatFile = async (fileId: string, newName: string): Promise<v
     });
 }
 
+export const deleteChat = async (fileId: string): Promise<void> => {
+    if (!gapi?.client?.drive) {
+        throw new Error("Google Drive API client is not initialized.");
+    }
+    const MAX_RETRIES = 3;
+    let lastError: any = null;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            await gapi.client.drive.files.delete({
+                fileId: fileId,
+            });
+            console.log(`Successfully deleted chat file ${fileId} on attempt ${i + 1}.`);
+            return;
+        } catch (err: any) {
+            lastError = err;
+            const status = err?.result?.error?.code;
+            const message = err?.result?.error?.message;
+            console.warn(`Attempt ${i + 1} to delete chat ${fileId} failed with status ${status}: ${message}. Retrying...`);
+            if (status === 404) {
+                 console.log("File not found. It might have been already deleted. Stopping retries.");
+                 return;
+            }
+            
+            await delay(1000 * Math.pow(2, i));
+        }
+    }
+    
+    console.error(`Failed to delete chat ${fileId} after ${MAX_RETRIES} attempts.`);
+    const finalMessage = lastError?.result?.error?.message || "The operation timed out after multiple retries.";
+    throw new Error(`Failed to delete from Google Drive: ${finalMessage}`);
+};
+
 export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatContent> => {
     const LOCAL_CHAT_ID = "local-session";
     const folderId = await getAppFolderId();
     const conversationData = { conversation: chatData.conversation };
     const fileContent = JSON.stringify(conversationData, null, 2);
-    
     if (chatData.id && chatData.id !== LOCAL_CHAT_ID) {
-        // Логика обновления существующего файла (она была правильной)
         await gapi.client.request({
             path: `/upload/drive/v3/files/${chatData.id}`,
             method: 'PATCH',
@@ -105,28 +132,21 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
         });
         return chatData;
     } else {
-        // *** ИСПРАВЛЕННАЯ ЛОГИКА СОЗДАНИЯ НОВОГО ФАЙЛА ***
-
-        // 1. Создаём метаданные для нового файла
         const fileMetadata = {
             name: `${chatData.name}.json`,
             mimeType: 'application/json',
             parents: [folderId],
         };
-
-        // 2. Создаём пустой файл, чтобы получить его ID
         const createResponse = await gapi.client.drive.files.create({
             resource: fileMetadata,
             fields: 'id, name',
         });
-        
         const newFile = createResponse.result;
 
         if (!newFile || !newFile.id) {
             throw new Error("Google Drive API failed to create the file metadata.");
         }
 
-        // 3. Загружаем содержимое в только что созданный файл по его ID
         await gapi.client.request({
             path: `/upload/drive/v3/files/${newFile.id}`,
             method: 'PATCH',
@@ -134,8 +154,6 @@ export const saveOrUpdateChat = async (chatData: ChatContent): Promise<ChatConte
             headers: { 'Content-Type': 'application/json' },
             body: fileContent,
         });
-
-        // 4. Возвращаем объект чата с новым ID от Google Drive
         return {
             ...chatData,
             id: newFile.id,
