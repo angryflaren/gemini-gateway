@@ -1,7 +1,7 @@
 export const config = {
   appTitle: "Gemini Gateway Studio",
   helpButtonText: "Need Help?",
-  backendUrl: import.meta.env.VITE_BACKEND_URL || "moving-moray-merely.ngrok-free.app",
+  backendUrl: import.meta.env.VITE_BACKEND_URL || "https://moving-moray-merely.ngrok-free.app",
   refinerModel: "models/gemini-2.5-flash-lite-preview-06-17",
 
   google: {
