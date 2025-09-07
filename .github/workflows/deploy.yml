@@ -1,0 +1,68 @@
+# Имя рабочего процесса, которое будет отображаться во вкладке Actions
+name: Deploy to GitHub Pages
+
+# Триггеры для запуска:
+on:
+  # 1. При каждом push в ветку 'main'
+  push:
+    branches:
+      - main
+  # 2. Позволяет запускать вручную со страницы Actions
+  workflow_dispatch:
+
+# Установка необходимых прав для публикации на GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Настройка для предотвращения одновременного запуска нескольких сборок
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # --- ЗАДАЧА СБОРКИ ПРОЕКТА ---
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Клонирование вашего репозитория
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+
+      # 2. Настройка среды Node.js (версия 18)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 3. Установка зависимостей проекта
+      # Рекомендуется использовать 'npm ci' для более быстрой и надежной установки в CI/CD
+      - name: Install Dependencies 📦
+        run: npm ci
+
+      # 4. Сборка проекта с помощью Vite. Результат будет в папке 'dist'
+      - name: Build 🏗️
+        run: npm run build
+
+      # 5. Загрузка собранных файлов (папки 'dist') как артефакта
+      # Этот артефакт будет использован в следующей задаче
+      - name: Upload artifact 📤
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  # --- ЗАДАЧА ПУБЛИКАЦИИ ---
+  deploy:
+    # Указываем, что эта задача зависит от успешного выполнения задачи 'build'
+    needs: build
+    # Установка окружения для публикации
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Публикация артефакта на GitHub Pages
+      - name: Deploy to GitHub Pages 🚀
+        id: deployment
+        uses: actions/deploy-pages@v4
