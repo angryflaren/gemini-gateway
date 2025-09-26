@@ -1,2 +1,1 @@
-# gemini-gateway
-Gemini Gateway: Мощный веб-интерфейс для анализа и генерации кода с помощью Google Gemini API.
+A powerful and intuitive web UI for the Google Gemini API. Upload your code, clone public repositories, and get insightful answers from Google's most advanced models.
