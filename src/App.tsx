@@ -793,7 +793,7 @@ const createLocalChat = (): ChatContent => ({
 });
 
 export default function App() {
-    const [isDarkMode, setIsDarkMode] = useState(true);
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const [apiKey, setApiKey] = useState("");
     const [model, setModel] = useState(config.models[0].id);
     const [inputText, setInputText] = useState("");
