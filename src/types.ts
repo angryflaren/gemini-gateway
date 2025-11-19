@@ -13,11 +13,13 @@ export type ResponsePart =
   | TitlePart | HeadingPart | SubheadingPart | AnnotatedHeadingPart
   | QuoteHeadingPart | TextPart | CodePart | MathPart | ListPart;
 
-// --- Types for the conversation structure ---
 interface UserTurn {
   type: 'user';
   prompt: string;
-  attachments: { name: string }[]; 
+  attachments: { 
+    name: string;
+    fileId?: string; // ID из Google Drive
+  }[];
   timestamp: string;
 }
 
@@ -28,8 +30,7 @@ interface AITurn {
 }
 
 export type ConversationTurn = UserTurn | AITurn;
-
-// --- Types for chats on Google Drive ---
+// --- Для чатов на Google Drive ---
 export interface Chat {
   id: string;
   name: string;
@@ -42,7 +43,7 @@ export interface ChatContent {
   conversation: ConversationTurn[];
 }
 
-// --- Type for Google user profile ---
+// --- Для Google-профиля  ---
 export interface UserProfile {
   id: string;
   name: string;

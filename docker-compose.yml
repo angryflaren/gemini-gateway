@@ -1,0 +1,31 @@
+services:
+  app:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    expose:
+      - "8000"
+    entrypoint: /bin/sh
+    command: -c "./entrypoint.sh"
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http nginx:80 --domain=moving-moray-merely.ngrok-free.app
+    ports:
+      - "4040:4040"
+    depends_on:
+      - nginx

@@ -43,6 +43,8 @@ jobs:
 
       # 4. Сборка проекта с помощью Vite. Результат будет в папке 'dist'
       - name: Build 🏗️
+        env:
+            VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
         run: npm run build
 
       # 5. Загрузка собранных файлов (папки 'dist') как артефакта

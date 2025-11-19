@@ -1,4 +1,3 @@
-// src/hooks/useGoogleAuth.ts
 import { useState, useEffect, useCallback } from 'react';
 import { config } from '../config';
 import { UserProfile } from '../types';
@@ -11,11 +10,10 @@ declare global {
   }
 }
 
-const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
-const GSI_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
-const SESSION_STORAGE_KEY = 'google-auth-token';
+const GAPI_SCRIPT_URL = config.google.gapiScriptUrl;
+const GSI_SCRIPT_URL = config.google.gsiScriptUrl;
+const SESSION_STORAGE_KEY = config.google.sessionStorageKey;
 
-// ИСПРАВЛЕНИЕ: Надежный загрузчик скриптов
 const loadScript = (src: string, id: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id)) {
@@ -39,7 +37,7 @@ export const useGoogleAuth = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const signOut = useCallback(() => {
-        const storedTokenString = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        const storedTokenString = sessionStorage.getItem(config.google.sessionStorageKey);
         if (storedTokenString && window.google?.accounts?.oauth2) {
             try {
                 const tokenData = JSON.parse(storedTokenString);
@@ -50,7 +48,7 @@ export const useGoogleAuth = () => {
                 console.error("Failed to parse or revoke token:", e);
             }
         }
-        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        sessionStorage.removeItem(config.google.sessionStorageKey);
         if (window.gapi?.client) {
             window.gapi.client.setToken(null);
         }
@@ -59,7 +57,7 @@ export const useGoogleAuth = () => {
 
     const fetchUserProfile = useCallback(async (token: string) => {
         try {
-            const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            const response = await fetch(config.google.userinfoEndpoint, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {
@@ -86,21 +84,18 @@ export const useGoogleAuth = () => {
     useEffect(() => {
         const initialize = async () => {
             try {
-                // ИСПРАВЛЕНИЕ: Используем новый надежный загрузчик
                 await loadScript(GSI_SCRIPT_URL, 'gsi-script');
                 await loadScript(GAPI_SCRIPT_URL, 'gapi-script');
                 
-                // ИСПРАВЛЕНИЕ: Более надежная проверка и инициализация gapi
                 if (typeof window.gapi?.load === 'undefined') {
                     throw new Error("window.gapi is not defined after script load.");
                 }
 
                 await new Promise<void>((resolve, reject) => {
-                    // Load 'client' and 'picker' if needed
                     window.gapi.load('client', {
                         callback: resolve,
                         onerror: reject,
-                        timeout: 5000, // 5 second timeout
+                        timeout: 5000,
                         ontimeout: reject,
                     });
                 });
@@ -117,21 +112,26 @@ export const useGoogleAuth = () => {
                     client_id: config.google.clientId,
                     scope: config.google.scope,
                     callback: async (tokenResponse: any) => {
-                        setIsLoading(true);
+                         setIsLoading(true);
                         if (tokenResponse.error) {
                             console.error("OAuth Error:", tokenResponse.error, tokenResponse.error_description);
                             signOut();
                             setIsLoading(false);
                             return;
                         }
-                        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(tokenResponse));
+                         sessionStorage.setItem(config.google.sessionStorageKey, JSON.stringify(tokenResponse));
                         window.gapi.client.setToken(tokenResponse);
                         await fetchUserProfile(tokenResponse.access_token);
                         setIsLoading(false);
                     },
+                    
+                    error_callback: (error: any) => {
+                        console.warn("Google Auth UI Error (e.g., popup closed):", error.message || error.type);
+                        setIsLoading(false); 
+                    }
                 });
 
-                const storedToken = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                const storedToken = sessionStorage.getItem(config.google.sessionStorageKey);
                 if (storedToken) {
                     try {
                         const tokenData = JSON.parse(storedToken);

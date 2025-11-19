@@ -1,16 +1,11 @@
-// A centralized configuration for file and folder handling.
-// This ensures consistency between the frontend (pre-zip filtering)
-// and the backend (repo processing).
-
 // ============================================================================
-// SECTION 1: IGNORED FOLDERS
-// Folders that are entirely skipped during processing.
+// Секция 1: Игнорируемые папки
 // ============================================================================
 export const IGNORED_FOLDERS = new Set([
   // --- Version Control Systems ---
   '.git', '.svn', '.hg', 'CVS',
 
-  // --- Dependencies & Packages (Crucial Target) ---
+  // --- Dependencies & Packages ---
   'node_modules', 'bower_components', 'vendor', 'Pods', 'Carthage',
   'jspm_packages', 'packages', 'deps', 'third_party', 'externals',
 
@@ -47,38 +42,89 @@ export const IGNORED_FOLDERS = new Set([
 
   // --- Cloud & Platform Specific ---
   '.serverless', '.aws-sam', '.terraform', '.elasticbeanstalk',
+
+  // --- Git Hooks ---
+  '.githooks',
+
+  // --- C# / EF ---
+  'Migrations',
+
+  // --- Testing (Common) ---
+  'test', 'tests', '__tests__', 'spec', 'specs', 'e2e', 'cypress',
+  '__mocks__', 'mocks',
+
+  // --- Documentation (Common) ---
+  'doc', 'docs', 'Documentation',
+
+  // --- Examples & Demos (Common) ---
+  'example', 'examples', 'sample', 'samples', 'demo', 'demos',
+
+  // --- UI Components (Storybook) ---
+  '.storybook', 'stories',
+
+  // --- Performance ---
+  'bench', 'benchmarks',
+
+  // --- Helper Scripts ---
+  'scripts',
 ]);
 
 // ============================================================================
-// SECTION 2: IGNORED FILES
-// Specific files or patterns to be ignored.
+// Секция 2: WARNING_PATTERNS
+// Файлы, которые могут быть полезны, но часто слишком велики.
+// Используется для показа предупреждения при *прямой загрузке* файла.
+// ============================================================================
+export const WARNING_PATTERNS = new Set([
+  // --- Media Files (Large but readable by Gemini) ---
+  '*.mp3', '*.wav', '*.flac', '*.aac', '*.ogg', '*.m4a', '*.aiff', // Audio
+  '*.mp4', '*.mov', '*.avi', '*.mkv', '*.webm', '*.wmv', '*.flv', // Video
+  '*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.tiff', '*.webp', // Images
+
+  // --- Documents (Large but readable by Gemini) ---
+  '*.pdf', '*.doc', '*.docx', '*.xls', '*.xlsx', '*.ppt', '*.pptx',
+
+  // --- Dependency Lockfiles (Large text) ---
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock',
+  'Gemfile.lock', 'Pipfile.lock', 'poetry.lock', 'go.sum', 'Cargo.lock',
+  'project.lock.json', 'Podfile.lock',
+
+  // --- Logs & Dumps (Large text) ---
+  '*.log', 'npm-debug.log', 'yarn-debug.log', 'yarn-error.log',
+  'pnpm-debug.log', 'lerna-debug.log', '*.pid', '*.seed', 'error.log',
+  'debug.log', 'perf.log',
+
+  // --- Assets & Icons (Also images) ---
+  'favicon.ico', 'favicon.png', 'favicon.svg', 'apple-touch-icon.png',
+  'logo.svg', 'logo.png', 'icon.svg', 'icon.png',
+  'screenshot.png', 'screenshot.jpg',
+]);
+
+
+// ============================================================================
+// Секция 3: Игнорируемые файлы
+// Файлы, которые почти всегда бесполезны или небезопасны для анализа.
+// Используется при *сканировании папок* (handleFolderChange).
 // ============================================================================
 export const IGNORED_FILES = new Set([
-  // --- Executables, Libraries & Installers (Security Risk & Useless for Analysis) ---
+  // --- Executables, Libraries & Installers ---
   '*.exe', '*.msi', '*.bat', '*.cmd', '*.sh', '*.com', '*.pif', '*.scr',
   '*.jar', '*.dll', '*.so', '*.dylib', '*.app', '*.pkg', '*.dmg',
   '*.deb', '*.rpm', '*.msu',
 
-  // --- Archives (Binary Containers) ---
+  // --- Archives ---
   '*.zip', '*.rar', '*.7z', '*.tar', '*.gz', '*.bz2', '*.tgz',
   '*.iso', '*.img', '*.toast', '*.arj', '*.lzh',
-
-  // --- Media Files (Too large/binary for analysis) ---
-  '*.mp3', '*.wav', '*.flac', '*.aac', '*.ogg', '*.m4a', '*.aiff', // Audio
-  '*.mp4', '*.mov', '*.avi', '*.mkv', '*.webm', '*.wmv', '*.flv', // Video
-  '*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.tiff', '*.webp', // Images
-  '*.pdf', '*.doc', '*.docx', '*.xls', '*.xlsx', '*.ppt', '*.pptx',
 
   // --- Fonts ---
   '*.ttf', '*.otf', '*.woff', '*.woff2', '*.eot',
 
-  // --- Database Files (Binary or too large) ---
-  '*.sqlite', '*.sqlite3', '*.db', '*.mdb', '*.accdb', '*.sql',
+  // --- Database Files (Binary) ---
+  '*.sqlite', '*.sqlite3', '*.db', '*.mdb', '*.accdb',
   '*.dump', '*.sdf',
 
   // --- System & OS-specific Files ---
   '.DS_Store', '._*', 'Thumbs.db', 'desktop.ini',
-  '.Spotlight-V100', '.Trashes', 'NTUSER.DAT',
+  '.Spotlight-V100', '.Trashes', 'NTUSER.DAT', 'Ink',
 
   // --- Compiled Code & Binary Objects ---
   '*.o', '*.obj', '*.class', '*.pyc', '*.pyo', '*.pyd', '*.a', '*.lib',
@@ -93,36 +139,15 @@ export const IGNORED_FILES = new Set([
   '*~', '*.swp', '*.swo', '*.bak', '*.bak2', '*.old',
   '*.tmp', '*.temp', '*.orig', '*.rej',
 
-  // --- Dependency Lockfiles (Metadata, not source code) ---
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock',
-  'Gemfile.lock', 'Pipfile.lock', 'poetry.lock', 'go.sum', 'Cargo.lock',
-  'project.lock.json', 'Podfile.lock',
-
-  // --- Logs & Dumps ---
-  '*.log', 'npm-debug.log', 'yarn-debug.log', 'yarn-error.log',
-  'pnpm-debug.log', 'lerna-debug.log', '*.pid', '*.seed', 'error.log',
-  'debug.log', 'perf.log',
-
-  // --- Local Environment Variables (Sensitive Info) ---
-  // IMPORTANT: .env.example or .env.template are NOT ignored, which is correct.
-  '.env', '.env.local', '.env.development', '.env.production', '.env.test',
-  '.env.development.local', '.env.test.local', '.env.production.local', '.env.*.local',
-
-  // --- Tooling & Build System Files (often config, not source) ---
+  // --- Tooling & Build System Files ---
   'gradlew', 'gradlew.bat', '*.tsbuildinfo', 'local.properties',
 
-  // --- Project Metadata & Docs (Often irrelevant for AI code analysis) ---
+  // --- Project Metadata & Docs (non-code) ---
   'LICENSE', 'LICENSE.md', 'LICENSE.txt', 'UNLICENSE', 'COPYING',
   'CONTRIBUTING.md', 'CHANGELOG.md', 'HISTORY.md', 'NEWS.md', 'AUTHORS.md',
   'CODE_OF_CONDUCT.md', 'SECURITY.md', 'PULL_REQUEST_TEMPLATE.md',
-  'ISSUE_TEMPLATE.md', 'FUNDING.yml', '.mailmap',
-  'robots.txt', 'humans.txt',
-  '.firebaserc',
-
-  // --- Assets & Icons ---
-  'favicon.ico', 'favicon.png', 'favicon.svg', 'apple-touch-icon.png',
-  'logo.svg', 'logo.png', 'icon.svg', 'icon.png',
-  'screenshot.png', 'screenshot.jpg',
+  'ISSUE_TEMPLATE.md', 'FUNDING.yml', '.gitmodules', '.gitkeep', '.mailmap',
+  'robots.txt', 'humans.txt', '.firebaserc',
 
   // --- Certificates & Keys ---
   '*.pem', '*.key',
@@ -130,9 +155,8 @@ export const IGNORED_FILES = new Set([
 
 
 // ============================================================================
-// SECTION 3: TEXT-BASED FILE EXTENSIONS
-// An expanded list of extensions to be treated as text and merged.
-// Everything not on this list will be treated as a binary file.
+// Секция 4: Текстовые файлы
+// Будут обрабатываться как текстовые, и объединяться.
 // ============================================================================
 export const TEXT_EXTENSIONS = new Set([
   // Web Development
@@ -158,8 +182,17 @@ export const TEXT_EXTENSIONS = new Set([
 
   // Other common text formats
   '.csv', '.tsv', '.graphql', '.gql',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock',
+  'Gemfile.lock', 'Pipfile.lock', 'poetry.lock', 'go.sum', 'Cargo.lock',
+  'project.lock.json', 'Podfile.lock',
+  '.log'
 ]);
 
+// ============================================================================
+// Секция 5: Заблокированные (для прямой загрузки)
+// Эти файлы блокируются на уровне `handleFileChange` из-за рисков безопасности
+// или потому что они 100% бинарные/бесполезные.
+// ============================================================================
 export const BLOCKED_EXTENSIONS = new Set([
   // --- Executables & Installers (Security Risk) ---
   '.exe', '.msi', '.bat', '.cmd', '.sh', '.com', '.pif', '.scr',
@@ -171,8 +204,8 @@ export const BLOCKED_EXTENSIONS = new Set([
   '.iso', '.img',
 
   // --- System & OS-specific Files (Useless for analysis) ---
-  '.ds_store', '._', '.thumbs.db', '.desktop.ini',
-  '.ntuser.dat',
+  '.ds_store', '._', '.thumbs_db', '.desktop_ini',
+  '.ntuser_dat',
 
   // --- Compiled Code & Binary Objects (Useless for analysis) ---
   '.o', '.obj', '.class', '.pyc', '.pyo', '.pyd', '.a', '.lib',
@@ -180,7 +213,4 @@ export const BLOCKED_EXTENSIONS = new Set([
 
   // --- Database Files (Binary and often too large) ---
   '.sqlite', '.sqlite3', '.db', '.mdb', '.accdb', '.sdf',
-
-  // --- Certificates & Keys (CRITICAL Security Risk) ---
-  '.pem', '.key',
 ]);
