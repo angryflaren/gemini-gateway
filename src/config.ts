@@ -2,7 +2,7 @@ export const config = {
   appTitle: "Gemini Gateway Studio", // Название приложения
   localQuotaMB: 30, // Лимит (в МБ) для IndexedDB для неавторизованных пользователей
   helpButtonText: "Need Help?", // Текст на кнопке помощи
-  backendUrl: import.meta.env.VITE_BACKEND_URL || "http://localhost:8000", // URL бэкенда
+  backendUrl: import.meta.env.VITE_BACKEND_URL || "https://moving-moray-merely.ngrok-free.app", // URL бэкенда
   refinerModel: "gemini-2.5-flash-lite",
 
   // --- Настройки Google API и аутентификации ---
