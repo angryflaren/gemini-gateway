@@ -26,6 +26,6 @@ services:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     command: http nginx:80 --domain=moving-moray-merely.ngrok-free.app
     ports:
-      - "4040:4040"
+      - "127.0.0.1:4040:4040"
     depends_on:
       - nginx
