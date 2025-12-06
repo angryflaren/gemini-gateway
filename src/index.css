@@ -55,15 +55,15 @@ a {
     }
 
     .user-bubble {
-        @apply bg-blue-600 text-white p-3 rounded-xl rounded-br-lg shadow-md max-w-[85%] sm:max-w-[75%];
+        @apply bg-blue-600 text-white p-3 rounded-xl rounded-br-lg shadow-md max-w-[95%] sm:max-w-[75%];
     }
 
     .ai-bubble {
         @apply bg-white border border-gray-200/80 shadow-sm 
         dark:bg-slate-700 dark:border dark:border-slate-600/50
         text-gray-900 dark:text-slate-100 
-        p-4 rounded-xl rounded-bl-lg shadow-md space-y-2
-        w-fit max-w-[95%] lg:max-w-[95%];
+        p-3 sm:p-4 rounded-xl rounded-bl-lg shadow-md space-y-2
+        w-fit max-w-full sm:max-w-[95%];
     }
 	
 	.chat-item-wrapper {
@@ -114,6 +114,13 @@ a {
     .input-submit-button {
       @apply px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-500;
     }
+}
+
+@layer base {
+  body {
+    @apply overflow-x-hidden bg-gray-100 dark:bg-slate-900;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Утилиты */

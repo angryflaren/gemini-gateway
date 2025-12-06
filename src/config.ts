@@ -2,12 +2,16 @@ export const config = {
   appTitle: "Gemini Gateway Studio", // Название приложения
   localQuotaMB: 30, // Лимит (в МБ) для IndexedDB для неавторизованных пользователей
   helpButtonText: "Need Help?", // Текст на кнопке помощи
-  backendUrl: import.meta.env.VITE_BACKEND_URL || "https://moving-moray-merely.ngrok-free.app", // URL бэкенда
-  refinerModel: "gemini-2.5-flash-lite",
+  backendUrl: import.meta.env.VITE_BACKEND_URL || "",
+  refinerModel: "gemini-2.5-flash",
+  
+  meta: {
+    copyright: "© 2025 Gemini Gateway Studio — Powered by Google AI"
+  },
 
   // --- Настройки Google API и аутентификации ---
   google: {
-    clientId: "205595350382-7a3mptfofbe1d0puirov0u1q5f5ma4oh.apps.googleusercontent.com",
+	clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
     scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
     discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
     gapiScriptUrl: "https://apis.google.com/js/api.js",
@@ -19,8 +23,9 @@ export const config = {
   // --- Список доступных моделей Gemini ---
   models: [
     { id: "gemini-2.5-pro", name: "gemini-2.5-pro ★", context_window: 115000 },
-    { id: "gemini-2.5-flash-preview-09-2025", name: "gemini-2.5-flash-preview", context_window: 240000 },
-    { id: "models/gemini-2.5-flash", name: "gemini-2.5-flash ★", context_window: 240000 },
+	{ id: "gemini-3-pro-preview", name: "gemini-3-pro ★", context_window: 10000000, requiresPaid: true },
+    { id: "gemini-2.5-flash", name: "gemini-2.5-flash ★", context_window: 240000 },
+	{ id: "gemini-2.5-flash-preview-09-2025", name: "gemini-2.5-flash-preview", context_window: 240000 },
     { id: "gemini-2.5-flash-lite", name: "gemini-2.5-flash-lite", context_window: 1000000},
     { id: "gemini-2.0-flash", name: "gemini-2.0-flash", context_window: 1000000 },
   ],
@@ -31,7 +36,8 @@ export const config = {
     historyToggleWarning: "When enabled, recent conversation history is sent to provide context. The app automatically manages token limits to prevent errors.", // Подсказка для переключателя истории
     tokenLimitWarning: "This file is very large. On a free tier key, you will likely get an error.", // Предупреждение о превышении лимита токенов
 	tokenLimitInfo: "Current context usage. If you exceed the limit, the oldest messages will be automatically removed to free up space.", 
-    fileManagerWarning: "Your context is too large, mostly due to files. Deselect files from your history below to reduce the token count." // Предупреждение для менеджера файлов (когда много файлов)
+    fileManagerWarning: "Your context is too large, mostly due to files. Deselect files from your history below to reduce the token count.", // Предупреждение для менеджера файлов (когда много файлов)
+	paidModelWarning: "This model requires a paid Google Cloud billing account (Tier 1+). On free API keys, it will return a quota error immediately.",
   },
 
   // --- Тексты для модального окна клонирования репозитория ---
@@ -65,6 +71,7 @@ export const config = {
     acceptedFileTypes: ".py,.js,.ts,.tsx,.json,.html,.css,.md,.csv,.txt,.pdf,image/png,image/jpeg,image/gif,image/webp,.docx,.pptx,.xlsx", // Разрешенные типы файлов
     defaultNewChatName: "New Chat",
     defaultUntitledChatName: "Untitled Chat",
+	exitButton: "Sign Out",
   },
 
   // --- Настройки хранилища ---

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { config } from '../config';
 import { UserProfile } from '../types';
 
@@ -13,6 +13,13 @@ declare global {
 const GAPI_SCRIPT_URL = config.google.gapiScriptUrl;
 const GSI_SCRIPT_URL = config.google.gsiScriptUrl;
 const SESSION_STORAGE_KEY = config.google.sessionStorageKey;
+
+interface TokenData {
+    access_token: string;
+    expires_in: number;
+    expires_at: number; 
+    [key: string]: any;
+}
 
 const loadScript = (src: string, id: string): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -35,9 +42,25 @@ export const useGoogleAuth = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    
+    const userEmailRef = useRef<string | null>(null);
+    const tokenExpiresAtRef = useRef<number>(0);
+    
+    const isRefreshingRef = useRef(false);
+
+    const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        userEmailRef.current = user?.email || null;
+    }, [user]);
 
     const signOut = useCallback(() => {
-        const storedTokenString = sessionStorage.getItem(config.google.sessionStorageKey);
+        if (checkIntervalRef.current) {
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
+        }
+
+        const storedTokenString = sessionStorage.getItem(SESSION_STORAGE_KEY);
         if (storedTokenString && window.google?.accounts?.oauth2) {
             try {
                 const tokenData = JSON.parse(storedTokenString);
@@ -48,7 +71,8 @@ export const useGoogleAuth = () => {
                 console.error("Failed to parse or revoke token:", e);
             }
         }
-        sessionStorage.removeItem(config.google.sessionStorageKey);
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        tokenExpiresAtRef.current = 0;
         if (window.gapi?.client) {
             window.gapi.client.setToken(null);
         }
@@ -63,7 +87,6 @@ export const useGoogleAuth = () => {
             if (!response.ok) {
                 const errorBody = await response.json();
                 if(errorBody.error?.status === 'UNAUTHENTICATED' || response.status === 401) {
-                    console.warn("User token expired or invalid. Signing out.");
                     signOut(); 
                 }
                 throw new Error(errorBody.error?.message || 'Failed to fetch user profile.');
@@ -81,75 +104,112 @@ export const useGoogleAuth = () => {
         }
     }, [signOut]);
 
+    const handleTokenResponse = useCallback(async (tokenResponse: any) => {
+        setIsLoading(true);
+        if (tokenResponse.error) {
+            console.error("OAuth Error:", tokenResponse.error);
+            if (tokenResponse.error === 'invalid_grant' || tokenResponse.error === 'interaction_required') {
+                signOut();
+            }
+            setIsLoading(false);
+            isRefreshingRef.current = false;
+            return;
+        }
+        
+        const expiresAt = Date.now() + (tokenResponse.expires_in || 3600) * 1000;
+        
+        const tokenData: TokenData = {
+            ...tokenResponse,
+            expires_at: expiresAt,
+        };
+        
+        tokenExpiresAtRef.current = expiresAt;
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(tokenData));
+        window.gapi.client.setToken(tokenResponse);
+
+        isRefreshingRef.current = false; 
+
+        if (!userEmailRef.current) {
+             await fetchUserProfile(tokenResponse.access_token);
+        }
+        
+        setIsLoading(false);
+        console.log(`Token refreshed successfully. Next expiry in ${((expiresAt - Date.now())/60000).toFixed(1)} min.`);
+    }, [fetchUserProfile, signOut]);
+
+    useEffect(() => {
+        checkIntervalRef.current = setInterval(() => {
+            if (!tokenExpiresAtRef.current || isRefreshingRef.current || !window.tokenClient) return;
+
+            const timeLeftMs = tokenExpiresAtRef.current - Date.now();
+            
+            if (timeLeftMs < 10 * 60 * 1000) { // Если осталось меньше 10 минут (600000 мс)
+                console.log(`Token expires in ${(timeLeftMs/1000).toFixed(0)}s. Triggering auto-refresh...`);
+                
+                isRefreshingRef.current = true;
+                
+                const params: any = { prompt: 'none' };
+                if (userEmailRef.current) {
+                    params.login_hint = userEmailRef.current;
+                }
+
+                window.tokenClient.requestAccessToken(params);
+            }
+        }, 20000); // 20 секунд
+
+        return () => {
+            if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+        };
+    }, []);
+
     useEffect(() => {
         const initialize = async () => {
             try {
                 await loadScript(GSI_SCRIPT_URL, 'gsi-script');
                 await loadScript(GAPI_SCRIPT_URL, 'gapi-script');
                 
-                if (typeof window.gapi?.load === 'undefined') {
-                    throw new Error("window.gapi is not defined after script load.");
-                }
+                if (typeof window.gapi?.load === 'undefined') throw new Error("window.gapi undefined");
 
                 await new Promise<void>((resolve, reject) => {
-                    window.gapi.load('client', {
-                        callback: resolve,
-                        onerror: reject,
-                        timeout: 5000,
-                        ontimeout: reject,
-                    });
+                    window.gapi.load('client', { callback: resolve, onerror: reject });
                 });
 
-                await window.gapi.client.init({
-                    discoveryDocs: config.google.discoveryDocs,
-                });
+                await window.gapi.client.init({ discoveryDocs: config.google.discoveryDocs });
 
                 if (typeof window.google?.accounts?.oauth2?.initTokenClient !== 'function') {
-                    throw new Error("google.accounts.oauth2.initTokenClient is not available.");
+                    throw new Error("initTokenClient not available");
                 }
             
                 window.tokenClient = window.google.accounts.oauth2.initTokenClient({
                     client_id: config.google.clientId,
                     scope: config.google.scope,
-                    callback: async (tokenResponse: any) => {
-                         setIsLoading(true);
-                        if (tokenResponse.error) {
-                            console.error("OAuth Error:", tokenResponse.error, tokenResponse.error_description);
-                            signOut();
-                            setIsLoading(false);
-                            return;
-                        }
-                         sessionStorage.setItem(config.google.sessionStorageKey, JSON.stringify(tokenResponse));
-                        window.gapi.client.setToken(tokenResponse);
-                        await fetchUserProfile(tokenResponse.access_token);
-                        setIsLoading(false);
-                    },
-                    
+                    callback: handleTokenResponse,
                     error_callback: (error: any) => {
-                        console.warn("Google Auth UI Error (e.g., popup closed):", error.message || error.type);
+                        console.warn("Auth Error:", error);
                         setIsLoading(false); 
+                        isRefreshingRef.current = false;
                     }
                 });
 
-                const storedToken = sessionStorage.getItem(config.google.sessionStorageKey);
-                if (storedToken) {
+                const storedTokenString = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (storedTokenString) {
                     try {
-                        const tokenData = JSON.parse(storedToken);
-                        if (tokenData && tokenData.access_token) {
+                        const tokenData = JSON.parse(storedTokenString);
+                        if (tokenData && tokenData.access_token && tokenData.expires_at > Date.now()) {
+                            tokenExpiresAtRef.current = tokenData.expires_at;
                             window.gapi.client.setToken(tokenData);
                             await fetchUserProfile(tokenData.access_token);
                         } else {
-                            signOut();
+                            signOut(); 
                         }
                     } catch (e) {
-                        console.error("Failed to parse stored token", e);
                         signOut();
                     }
                 }
                 
                 setIsInitialized(true);
             } catch (error) {
-                console.error("Google Auth initialization failed:", error);
+                console.error("Init failed:", error);
                 signOut();
             } finally {
                 setIsLoading(false);
@@ -157,13 +217,10 @@ export const useGoogleAuth = () => {
         };
 
         initialize();
-    }, [fetchUserProfile, signOut]);
+    }, [handleTokenResponse, fetchUserProfile, signOut]);
 
     const signIn = useCallback(() => {
-        if (!isInitialized || !window.tokenClient) {
-            console.error("Auth system not ready for sign-in.");
-            return;
-        }
+        if (!isInitialized || !window.tokenClient) return;
         setIsLoading(true);
         window.tokenClient.requestAccessToken({ prompt: '' });
     }, [isInitialized]);

@@ -21,7 +21,7 @@ import { useGoogleAuth } from "./hooks/useGoogleAuth";
 interface HistoricalFile {
     id: string;
     name: string;
-    size: number; // в байтах
+    size: number;
 }
 
 // --- Иконки ---
@@ -122,6 +122,12 @@ const ChevronDownIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
   </svg>
+);
+
+const MenuIcon = ({ className = "w-6 h-6" }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
 );
 
 const ACCEPTED_FILE_TYPES = config.app.acceptedFileTypes;
@@ -415,37 +421,103 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }
     const LinkRenderer = (props: React.ComponentPropsWithoutRef<"a">) => {
         const { href, children } = props;
         const isExternal = href && (href.startsWith('http://') || href.startsWith('https://'));
-        if (isExternal) {
-            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-        }
-        return <a href={href}>{children}</a>;
+        return isExternal ? (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+                {children}
+            </a>
+        ) : (
+            <a href={href} className="text-blue-600 dark:text-blue-400 font-medium hover:underline">{children}</a>
+        );
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm dark:border dark:border-gray-700 rounded-lg shadow-xl p-6 w-full max-w-2xl" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-slate-100">{config.helpModal.title}</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-                    <p>{config.helpModal.introduction}</p>
-                    <div>
-                        <h4 className="font-semibold">{config.helpModal.apiKeyTitle}</h4>
-                        <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.apiKeySection}</ReactMarkdown>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold">{config.helpModal.filesTitle}</h4>
-                        <p>{config.helpModal.filesSection}</p>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold">{config.helpModal.repoTitle}</h4>
-                        <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.repoSection}</ReactMarkdown>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold">{config.helpModal.contactTitle}</h4>
-                        <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.contactSection}</ReactMarkdown>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
+            
+            <div 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                onClick={onClose}
+            ></div>
+
+            <div 
+                className="relative w-full sm:max-w-2xl bg-white dark:bg-slate-900 
+                           h-[85vh] sm:h-auto sm:max-h-[85vh]
+                           rounded-t-[20px] sm:rounded-2xl
+                           shadow-2xl flex flex-col overflow-hidden 
+                           animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Хедер */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-10 shrink-0">
+                    <h3 className="text-lg font-bold tracking-tight text-gray-900 dark:text-slate-100">
+                        {config.helpModal.title}
+                    </h3>
+                    {/* Кнопка-крестик */}
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 -mr-2 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-slate-800 rounded-full transition-colors"
+                        aria-label="Close"
+                    >
+                        <CloseIcon className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Контент */}
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700">
+                    <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
+                        
+                        <p className="text-base leading-relaxed text-gray-600 dark:text-slate-300">
+                            {config.helpModal.introduction}
+                        </p>
+
+                        {/* Секция API Key (выделена цветом) */}
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                            <h4 className="text-blue-900 dark:text-blue-300 font-semibold mb-2 flex items-center gap-2 m-0">
+                                <span className="text-lg">🔑</span> {config.helpModal.apiKeyTitle}
+                            </h4>
+                            <div className="text-blue-800 dark:text-blue-200/80 text-sm mt-2">
+                                <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.apiKeySection}</ReactMarkdown>
+                            </div>
+                        </div>
+
+                        {/* Секция Files */}
+                        <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2 m-0">
+                                <FolderIcon className="w-5 h-5 text-gray-400" /> {config.helpModal.filesTitle}
+                            </h4>
+                            <p className="text-gray-600 dark:text-slate-400 mt-1 mb-0">{config.helpModal.filesSection}</p>
+                        </div>
+
+                        {/* Секция Repo */}
+                        <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2 m-0">
+                                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                {config.helpModal.repoTitle}
+                            </h4>
+                            <div className="text-gray-600 dark:text-slate-400 mt-1">
+                                <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.repoSection}</ReactMarkdown>
+                            </div>
+                        </div>
+
+                        {/* Секция Contact */}
+                        <div className="pt-4 border-t dark:border-gray-800">
+                            <h4 className="font-semibold text-gray-900 dark:text-white mb-1 m-0">{config.helpModal.contactTitle}</h4>
+                            <div className="text-sm text-gray-500 dark:text-slate-500 mt-1">
+                                <ReactMarkdown components={{ a: LinkRenderer }}>{config.helpModal.contactSection}</ReactMarkdown>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="flex justify-end mt-6">
-                    <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{config.helpModal.closeButton}</button>
+
+                {/* Футер */}
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-800/50 safe-area-bottom shrink-0">
+                    <button 
+                        onClick={onClose} 
+                        className="w-full py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm"
+                    >
+                        {config.helpModal.closeButton}
+                    </button>
                 </div>
             </div>
         </div>
@@ -674,13 +746,31 @@ const FileManagementModal = ({
                         onClick={onClose}
                         className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
                     >
-                        Close
+                        {config.helpModal.closeButton}
                     </button>
                 </div>
             </div>
         </div>
     );
 };
+
+const TierAlert = () => (
+    <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-700/30 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="shrink-0 mt-0.5 text-amber-500 dark:text-amber-400">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <div className="space-y-1">
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 tracking-wide uppercase">
+                Paid Plan Required
+            </p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-100/70 leading-relaxed font-medium">
+                {config.dialog.paidModelWarning}
+            </p>
+        </div>
+    </div>
+);
 
 interface CustomSelectOption {
   id: string;
@@ -738,7 +828,6 @@ const CustomSelect = ({
                   onChange(option.id);
                   setIsOpen(false);
                 }}
-                // Стили для опций, включая подсветку выбранной
                 className={`px-4 py-2 cursor-pointer transition-colors hover:bg-blue-600/20 ${
                   option.id === value 
                   ? 'font-semibold text-blue-500' 
@@ -756,18 +845,36 @@ const CustomSelect = ({
 };
 
 const AuthDisplay = ({ user, onLogin, onLogout, isLoading, isReady }: { user: UserProfile | null, onLogin: () => void, onLogout: () => void, isLoading: boolean, isReady: boolean }) => {
+	const [imgError, setImgError] = useState(false);
+	
     if (user) {
+		const displayName = user.name || user.email || 'User';
+        const initial = displayName.charAt(0).toUpperCase();
         return (
             <div className="relative group">
-                <img src={user.imageUrl} alt={user.name} className="w-8 h-8 rounded-full cursor-pointer" />
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg py-1 hidden group-hover:block z-20">
-                    <div className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 border-b dark:border-slate-600">
-                        <p className="font-semibold truncate">{user.name}</p>
-                        <p className="text-xs truncate">{user.email}</p>
+                {!imgError ? (
+                    <img 
+                        src={user.imageUrl} 
+                        alt={user.name} 
+                        className="w-8 h-8 rounded-full cursor-pointer object-cover border border-gray-200 dark:border-gray-600"
+                        referrerPolicy="no-referrer"
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    <div className="w-8 h-8 rounded-full cursor-pointer bg-blue-600 flex items-center justify-center text-white font-bold text-sm border border-blue-400 select-none">
+                        {initial}
                     </div>
-                    <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); }} className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">
-                        Sign Out
-                    </a>
+                )}
+                <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-20">
+                    <div className="bg-white dark:bg-slate-800 rounded-md shadow-lg py-1 border border-gray-200 dark:border-gray-600">
+                        <div className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 border-b dark:border-slate-600">
+                            <p className="font-semibold truncate">{displayName}</p>
+                            <p className="text-xs truncate opacity-70">{user.email}</p>
+                        </div>
+                        <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); }} className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700">
+                            {config.app.exitButton}
+                        </a>
+                    </div>
                 </div>
             </div>
         );
@@ -842,6 +949,9 @@ export default function App() {
     const skipNextFetch = useRef(false);
     const chatListContainerRef = useRef<HTMLDivElement>(null);
 	
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [mobileTab, setMobileTab] = useState<'settings' | 'history'>('history');
+	
 	
 	const handleScroll = () => {
         if (chatContainerRef.current) {
@@ -879,6 +989,8 @@ export default function App() {
             setCurrentModelLimit(config.models[0].context_window);
         }
     }, [model]);
+	
+	const showPaidWarning = config.models.find(m => m.id === model)?.requiresPaid;
 
     useEffect(() => {
         document.documentElement.classList.toggle("dark", isDarkMode);
@@ -897,7 +1009,7 @@ export default function App() {
         setDeselectedFileIds(new Set());
         setBaseTokenCount(0);
         setBaseTextTokenCount(0);
-        if (!user) { // Очищаем IndexedDB(если не вошли в аккаунт)
+        if (!user) { // Очищаем IndexedDB (если не вошли в аккаунт)
             try {
                 await clearAllLocalFiles();
                 setLocalUsageBytes(0);
@@ -997,7 +1109,6 @@ export default function App() {
     }, [editingChatId]);
 
     const calculateBaseTokenCount = useCallback(async () => {
-        // Если нет ключа, тумблера или истории - выходим
         if (!apiKey.trim() || !rememberContext || !activeChatContent || activeChatContent.conversation.length === 0) {
             setBaseTokenCount(0);
             setBaseTextTokenCount(0);
@@ -1008,7 +1119,6 @@ export default function App() {
         setIsTokenCounting(true);
         setTokenCountError(null);
         
-        // Один FormData для всех данных
         const historyFormData = new FormData();
         historyFormData.append("apiKey", apiKey);
         historyFormData.append("model", model);
@@ -1060,7 +1170,7 @@ export default function App() {
             
             setHistoricalFiles(allFilesData.map(f => ({ id: f.id, name: f.name, size: f.size })));
             
-            // Добавляем отфильтрованные файлы в *тот же* FormData
+            // Добавляем отфильтрованные файлы
             const filesToCount = allFilesData.filter(f => !deselectedFileIds.has(f.id));
             filesToCount.forEach(f => {
                 historyFormData.append("files", new File([f.blob], f.name), f.name);
@@ -1085,7 +1195,7 @@ export default function App() {
             });
             const historyJson = JSON.stringify(historyForApi);
             const historyFile = new File([new Blob([historyJson], { type: 'application/json' })], "chat_history.json");
-            // Добавляем файл истории в *тот же* FormData
+            // Добавляем файл истории
             historyFormData.append("files", historyFile, historyFile.name);
 
             // --- Один единственный запрос ---
@@ -1115,7 +1225,6 @@ export default function App() {
     }, [apiKey, model, rememberContext, activeChatContent, user, isInitialized, deselectedFileIds]);
 
     const calculateDeltaTokenCount = useCallback(async () => {
-        // Если нет ключа, или нечего считать - выходим
         if (!apiKey.trim()) {
             setDeltaTokenCount(0);
             return;
@@ -1137,7 +1246,6 @@ export default function App() {
                 formData.append("files", file, file.name);
             });
 
-            // Вызов эндпоинта
             const response = await fetch(`${config.backendUrl}/api/count_tokens`, {
                 method: "POST",
                 headers: { 'ngrok-skip-browser-warning': 'true' },
@@ -1151,7 +1259,7 @@ export default function App() {
             
             const data = await response.json();
             setDeltaTokenCount(data.total_tokens || 0);
-            setTokenCountError(null); // Сбрасываем ошибку *только* при успехе
+            setTokenCountError(null);
 
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unknown error";
@@ -1175,7 +1283,7 @@ export default function App() {
     useEffect(() => {
         if (rememberContext && isInitialized && !isLoading) {
             calculateBaseTokenCount();
-        } else if (!rememberContext) { // Сбрасываем, если выключили тумблер
+        } else if (!rememberContext) {
             setBaseTokenCount(0);
             setBaseTextTokenCount(0);
             setHistoricalFiles([]);
@@ -1582,7 +1690,7 @@ export default function App() {
             const data = await response.json();
             const textSizeInBytes = new TextEncoder().encode(data.processed_text).length;
 
-            // Проверяем лимиты в зависимости от статуса пользователя
+            // Проверяем лимиты
             if (user && isInitialized) {
                 // --- 1. Пользователь авторизован (GDrive) ---
                 const limitMB = config.repoModal.maxCloneSizeMB;
@@ -1621,7 +1729,6 @@ export default function App() {
 	
 	const scrollToBottom = () => {
 		if (chatContainerRef.current) {
-			// Прокручиваем к максимальной высоте контейнера, т.е. к последнему сообщению
 			chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
 		}
 	};
@@ -1683,7 +1790,6 @@ export default function App() {
 		setInputText("");
 		setAttachedFiles([]);
 
-		// Готовим formData 
 		const formData = new FormData();
 		formData.append("apiKey", apiKey);
 		formData.append("prompt", currentInput);
@@ -1937,23 +2043,42 @@ export default function App() {
             <RepoCloneModal isOpen={isRepoModalOpen} onClose={() => setIsRepoModalOpen(false)} onSubmit={handleCloneRepo} isCloning={isCloning} />
             <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
             <div className={`h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? "bg-slate-900 text-slate-100" : "bg-gray-100 text-gray-900"}`}>
-                <header className="border-b border-gray-700/30 dark:border-gray-700 px-6 py-4 flex items-center justify-between sticky top-0 bg-gray-100/60 dark:bg-slate-900/80 backdrop-blur-md z-30">
-                    <div className="flex items-center gap-2">
-                        <GemIcon />
-                        <h1 className="text-xl font-semibold tracking-tight">{config.appTitle}</h1>
+                <header className="border-b border-gray-200/50 dark:border-gray-800 px-4 lg:px-25 py-3 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl z-40 transition-all duration-300 relative">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="lg:hidden p-2 -ml-2 rounded-full active:bg-gray-200 dark:active:bg-slate-800 transition-colors text-gray-700 dark:text-slate-200"
+                        >
+                            <MenuIcon className="w-6 h-6" />
+                        </button>
+
+                        <div className="hidden lg:flex items-center gap-2">
+                            <GemIcon className="w-7 h-7 text-blue-600 dark:text-blue-500" />
+                            <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                                {config.appTitle}
+                            </h1>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors" aria-label="Toggle theme">
-                            {isDarkMode ? '🌜' : '☀️'}
-                        </button>
-                        <button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                            {config.helpButtonText}
-                        </button>
-                        <AuthDisplay user={user} onLogin={signIn} onLogout={signOut} isLoading={isAuthLoading} isReady={isInitialized} />
+					<div className="lg:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+                        <GemIcon className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+                        <h1 className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white whitespace-nowrap">
+                            {config.appTitle}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+						<div className="hidden lg:flex items-center gap-3">
+							<button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-xl">
+								{isDarkMode ? '🌜' : '☀️'}
+							</button>
+							<button onClick={() => setShowHelp(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full font-medium transition-all text-sm shadow-sm hover:shadow-md">
+                                {config.helpButtonText}
+                            </button>
+						</div>
+						<AuthDisplay user={user} onLogin={signIn} onLogout={signOut} isLoading={isAuthLoading} isReady={isInitialized} />
                     </div>
                 </header>
-                <main className="max-w-7xl mx-auto grid flex-1 grid-cols-1 lg:grid-cols-4 gap-6 p-6 min-h-0">
-                    <aside className="lg:col-span-1">
+                <main className="max-w-7xl mx-auto w-full grid flex-1 grid-cols-1 lg:grid-cols-4 gap-0 lg:gap-6 p-0 lg:p-6 min-h-0 relative overflow-hidden">
+                    <aside className="hidden lg:flex lg:flex-col lg:col-span-1">
                         <div className={`p-6 h-full rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-slate-800/70" : "bg-white/70"} backdrop-blur-sm`}>
                             <h2 className="text-lg font-semibold mb-4">API Configuration</h2>
                             <div className="space-y-4">
@@ -1970,6 +2095,7 @@ export default function App() {
 										onChange={(id) => setModel(id)}
 										options={config.models.map(m => ({ id: m.id, name: m.name }))}
 									/>
+									{showPaidWarning && <TierAlert />}
 								</div>
                                 <div className="pt-2">
                                     <p className="text-xs text-gray-400 mb-2">This is a professional AI assistant for developers.</p>
@@ -1978,7 +2104,7 @@ export default function App() {
                             </div>
                         </div>
                     </aside>
-                    <div className={`lg:col-span-2 rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-slate-800/70" : "bg-white/70"} backdrop-blur-sm relative`}>
+                    <div className={`lg:col-span-2 lg:rounded-xl shadow-none lg:shadow-sm border-x-0 lg:border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 ${isDarkMode ? "bg-slate-900 lg:bg-slate-800/70" : "bg-white lg:bg-white/70"} backdrop-blur-sm relative`}>
                         <div ref={chatContainerRef} onScroll={handleScroll} className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
                             {isContentLoading && !activeChatContent && (<div className="flex items-center justify-center h-full"><SpinnerIcon className="w-8 h-8 text-slate-400" /></div>)}
                             {(!isContentLoading || activeChatContent) && (activeChatContent?.conversation || []).length === 0 && !isLoading && !error && (
@@ -2033,15 +2159,15 @@ export default function App() {
 							onClick={() => isInputCollapsed && setIsInputCollapsed(false)}
 							className={`relative flex-shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
 								isInputCollapsed 
-									? "w-12 h-6 mx-auto mb-4 mt-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl hover:scale-105 cursor-pointer rounded-full shadow-2xl border border-white/20 dark:border-white/10 z-50" 
-									: "w-full mx-0 mb-0 p-4 bg-gray-100/60 dark:bg-slate-900/80 border-t border-gray-200 dark:border-gray-700/50 rounded-b-xl z-50"
+									? "w-full sm:w-12 h-6 mx-0 sm:mx-auto mb-0 sm:mb-4 mt-2 bg-transparent sm:bg-white/80 dark:sm:bg-slate-800/80 backdrop-blur-xl sm:hover:scale-105 sm:cursor-pointer sm:rounded-full sm:shadow-2xl sm:border border-white/20 dark:border-white/10 z-50" 
+									: "w-full mx-0 mb-0 p-3 sm:p-4 bg-gray-100/60 dark:bg-slate-900/80 border-t border-gray-200 dark:border-gray-700/50 rounded-b-xl z-50"
 							}`}
 						>
                             {/* Кнопка-переключатель */}
-                            <div className={`transition-all duration-300 z-30 ${
+                            <div className={`transition-all duration-300 z-30 hidden sm:flex ${
                                 isInputCollapsed 
-                                    ? "w-full h-full flex items-center justify-center rotate-180" // Центр таблетки
-                                    : "absolute -top-3 left-1/2 -translate-x-1/2 rotate-0" // Язычок сверху
+                                    ? "w-full h-full items-center justify-center rotate-180" 
+                                    : "absolute -top-3 left-1/2 -translate-x-1/2 rotate-0"
                                 }`}>
 								<button
 									onClick={(e) => { e.stopPropagation(); setIsInputCollapsed(!isInputCollapsed); }}
@@ -2058,7 +2184,7 @@ export default function App() {
 							<div 
 								className={`input-area-container transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
 									isInputCollapsed 
-										? "opacity-0 scale-95 pointer-events-none h-0 overflow-hidden translate-y-4" 
+										? "opacity-100 sm:opacity-0 scale-100 sm:scale-95 sm:pointer-events-none h-auto sm:h-0 overflow-visible sm:overflow-hidden translate-y-0 sm:translate-y-4" 
 										: "opacity-100 scale-100 h-auto translate-y-0"
 								}`}
 								onDragEnter={handleDragEnter}
@@ -2207,7 +2333,7 @@ export default function App() {
 											<div className="flex items-center gap-2">
 												<label htmlFor="remember-context-toggle" className="flex items-center gap-2 cursor-pointer select-none group">
 													<span className="hidden sm:block text-xs font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
-														Memory
+														{config.dialog.historyToggleLabel}
 													</span>
 													<div className="relative">
 														<input 
@@ -2313,7 +2439,7 @@ export default function App() {
                                             isTokenCounting ||
                                             isDeltaCounting
                                         }
-                                        className="input-submit-button"
+                                        className="input-submit-button p-3 sm:px-3 sm:py-2"
                                         aria-label="Send message"
                                     >
                                         {isLoading ? (<SpinnerIcon />) : (<ArrowUpIcon />)}
@@ -2322,7 +2448,7 @@ export default function App() {
                             </div>
                         </div>
                     </div>
-                    <aside className="lg:col-span-1 flex flex-col min-h-0">
+                    <aside className="hidden lg:flex lg:flex-col lg:col-span-1 min-h-0">
                         <div className={`p-4 h-full rounded-xl shadow-sm border border-gray-700/30 dark:border-gray-700 ${isDarkMode ? "bg-slate-800/70" : "bg-white/70"} backdrop-blur-sm flex flex-col`}>
                             {isAuthLoading ? (
                                 <div className="flex-1 flex items-center justify-center"><SpinnerIcon className="w-8 h-8" /></div>
@@ -2330,7 +2456,7 @@ export default function App() {
                                 <>
                                     <div className="flex justify-between items-center mb-4 pb-2 border-b dark:border-gray-700">
                                         <h2 className="text-lg font-semibold">Chat History</h2>
-                                        <button onClick={handleCreateNewChat} className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors" aria-label="New Chat"><PlusIcon /></button>
+                                        <button onClick={handleCreateNewChat} className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors" aria-label={config.app.defaultNewChatName}><PlusIcon /></button>
                                     </div>
                                     <div ref={chatListContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-2 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-700 scrollbar-track-transparent">
                                         {chats.length > 0 ? (
@@ -2377,9 +2503,185 @@ export default function App() {
                             )}
                         </div>
                     </aside>
+					{isMobileMenuOpen && (
+                        <div className="fixed inset-0 z-50 lg:hidden flex font-sans">
+                            {/* Фон-затемнение (Backdrop) */}
+                            <div 
+                                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            ></div>
+                            
+                            {/* Выезжающая панель */}
+                            <div className="relative w-[85%] max-w-[320px] bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 border-r border-gray-200 dark:border-gray-800">
+                                
+                                {/* Шапка меню и Табы */}
+                                <div className="px-5 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
+                                    <div className="flex justify-between items-center mb-5">
+                                        <div>
+                                            <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Menu</h2>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">Gemini Gateway Options</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsMobileMenuOpen(false)} 
+                                            className="p-2 -mr-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                        >
+                                            <CloseIcon className="w-6 h-6" />
+                                        </button>
+                                    </div>
+
+                                    {/* Segmented Control (Tabs) */}
+                                    <div className="flex bg-gray-200/60 dark:bg-slate-800 rounded-lg p-1">
+                                        <button
+                                            onClick={() => setMobileTab('history')}
+                                            className={`flex-1 py-1.5 text-sm font-semibold rounded-[6px] transition-all duration-200 ${
+                                                mobileTab === 'history' 
+                                                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
+                                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                            }`}
+                                        >
+                                            History
+                                        </button>
+                                        <button
+                                            onClick={() => setMobileTab('settings')}
+                                            className={`flex-1 py-1.5 text-sm font-semibold rounded-[6px] transition-all duration-200 ${
+                                                mobileTab === 'settings' 
+                                                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
+                                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                            }`}
+                                        >
+                                            Settings
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Контент меню (Скроллируемая область) */}
+                                <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700">
+                                    {mobileTab === 'settings' ? (
+                                        // --- Вкладка НАСТРОЙКИ ---
+                                        <div className="space-y-6 animate-in fade-in duration-300">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Gemini API Key</label>
+                                                <input 
+                                                    type="password" 
+                                                    value={apiKey} 
+                                                    onChange={(e) => setApiKey(e.target.value)} 
+                                                    placeholder="AIzaSy..."
+                                                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDarkMode ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="mb-2">
+                                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Model Selection</label>
+                                                </div>
+                                                <CustomSelect
+                                                    label=""
+                                                    value={model}
+                                                    onChange={(id) => setModel(id)}
+                                                    options={config.models.map(m => ({ id: m.id, name: m.name }))}
+                                                />
+												{showPaidWarning && <TierAlert />}
+                                            </div>
+                                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                                                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                                                    Settings applied immediately. API Key is stored locally in your browser session.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // --- Вкладка ИСТОРИЯ ---
+                                        <div className="flex flex-col h-full animate-in fade-in duration-300">
+                                            <button 
+                                                onClick={() => { handleCreateNewChat(); setIsMobileMenuOpen(false); }} 
+                                                className="w-full mb-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl flex items-center justify-center gap-2 font-semibold shadow-md shadow-blue-500/20 transition-all"
+                                            >
+                                                <PlusIcon className="w-5 h-5" /> Start New Chat
+                                            </button>
+                                            
+                                            <div className="space-y-2">
+                                                {chats.length > 0 ? (
+                                                    chats.map(chat => (
+                                                        <div 
+                                                            key={chat.id}
+                                                            onClick={() => { 
+                                                                if(editingChatId !== chat.id) {
+                                                                    setActiveChatId(chat.id);
+                                                                    setIsMobileMenuOpen(false);
+                                                                }
+                                                            }}
+                                                            className={`group p-3.5 rounded-xl border transition-all active:scale-[0.98] ${
+                                                                activeChatId === chat.id 
+                                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500/50' 
+                                                                : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-800 hover:border-blue-300 dark:hover:border-slate-600'
+                                                            }`}
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <span className={`font-medium text-sm truncate pr-2 ${activeChatId === chat.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-slate-200'}`}>
+                                                                    {chat.name}
+                                                                </span>
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id); }} 
+                                                                    className="p-1.5 -mr-1.5 -mt-1.5 text-gray-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 transition-colors"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="text-[10px] text-gray-400 dark:text-slate-500 mt-2 font-medium">
+                                                                {new Date(chat.createdTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-slate-600">
+                                                        <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-full mb-3">
+                                                            <FolderIcon className="w-6 h-6 opacity-50" />
+                                                        </div>
+                                                        <p className="text-sm">No chat history found</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="p-5 border-t border-gray-200/60 dark:border-gray-800 bg-gray-50/90 dark:bg-slate-900/90 backdrop-blur-xl pb-8 safe-area-bottom">
+                                    
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm active:scale-[0.99] transition-transform">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg">{isDarkMode ? '🌜' : '☀️'}</span>
+                                                <span className="font-medium text-sm text-gray-900 dark:text-slate-100">Dark Mode</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => setIsDarkMode(!isDarkMode)} 
+                                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isDarkMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-slate-600'}`}
+                                            >
+                                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => { setShowHelp(true); setIsMobileMenuOpen(false); }}
+                                            className="w-full py-3.5 rounded-2xl border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-slate-100 font-medium text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors bg-white dark:bg-slate-800 shadow-sm active:bg-gray-50"
+                                        >
+                                            {config.helpButtonText}
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-8 text-center">
+                                        <p className="text-[11px] font-medium text-gray-400 dark:text-slate-600">
+                                            {config.appTitle}
+                                        </p>
+                                        <p className="text-[10px] text-gray-300 dark:text-slate-700 mt-1">
+                                            {config.meta.copyright}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </main>
-                <footer className="mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500">
-                    <p>© 2025 Gemini Gateway Studio — Powered by Google AI</p>
+                <footer className="hidden lg:block mt-auto border-t border-gray-700/30 dark:border-gray-700 px-6 py-4 text-center text-sm text-gray-500">
+                    <p>{config.meta.copyright}</p>
                 </footer>
             </div>
         </>

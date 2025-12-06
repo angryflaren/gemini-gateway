@@ -28,6 +28,7 @@ coverage/
 *.local
 
 backend/
+#backend/*.log
 
 chat_history.json
 user_prompt.txt
@@ -37,3 +38,5 @@ temp/
 tmp/
 
 nexus-weaver-output*.txt
+
+*.log
