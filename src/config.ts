@@ -22,9 +22,9 @@ export const config = {
 
   // --- Список доступных моделей Gemini ---
   models: [
-    { id: "gemini-2.5-pro", name: "gemini-2.5-pro ★", context_window: 115000 },
+	{ id: "gemini-2.5-flash", name: "gemini-2.5-flash ★", context_window: 240000 },
+    { id: "gemini-2.5-pro", name: "gemini-2.5-pro ★", context_window: 115000, requiresPaid: true },
 	{ id: "gemini-3-pro-preview", name: "gemini-3-pro ★", context_window: 10000000, requiresPaid: true },
-    { id: "gemini-2.5-flash", name: "gemini-2.5-flash ★", context_window: 240000 },
 	{ id: "gemini-2.5-flash-preview-09-2025", name: "gemini-2.5-flash-preview", context_window: 240000 },
     { id: "gemini-2.5-flash-lite", name: "gemini-2.5-flash-lite", context_window: 1000000},
     { id: "gemini-2.0-flash", name: "gemini-2.0-flash", context_window: 1000000 },
